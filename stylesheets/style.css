@@ -1,0 +1,500 @@
+* {
+ color: palette(window-text);
+}
+
+QDialog {
+    background: palette(window);
+}
+
+
+/********** Button **************/
+
+QAbstractButton {
+    border-radius: 2px;
+    padding: 4px;
+    margin: 2px;
+    color: palette(button-text);
+}
+
+QPushButton {
+    background-color: palette(button);
+    border: 1px solid palette(dark);
+    border-radius: 3px;
+    padding: 6px;
+}
+
+QToolButton {
+    padding: 1px;
+    border: 0 solid palette(dark);
+    color: palette(button-text);
+    background: None;
+}
+
+QToolButton::menu-button {
+    padding: 2px;
+    color: palette(button-text);
+}
+
+QPushButton:hover, QPushButton:selected, QToolButton:hover {
+    border-width: 1px;
+    border-color: palette(highlight);
+    color: palette(highlighted);
+}
+
+QPushButton:!enabled, QPushButton:!enabled, QToolButton:!enabled {
+    background-color: gray;
+    border: 0;
+}
+
+
+View QToolButton[square="true"] {
+    border-radius: 0px;
+}
+
+View QToolButton[circle="true"] {
+    border-radius: 15px;
+}
+
+View QToolButton[no_border="true"]{
+    border-color: transparent;
+}
+
+View QToolButton[no_border="true"]:hover {
+    border-color: palette(highlight);
+}
+
+QToolButton[hide_arrow="true"]::menu-indicator {
+    image: none;
+}
+
+QToolButton {
+    color: palette(button-text);
+}
+
+/********** Fields **************/
+
+QTextEdit, QLineEdit, QComboBox, QSpinBox, QWidget QDateTimeEdit
+{
+    background-color: palette(base);
+    border: 1px solid palette(dark);
+    border-radius: 2px;
+    padding: 4px;
+    min-width: 100px;
+    max-width: 800px;
+}
+
+/*
+###############################
+		ComboBox
+###############################
+*/
+QComboBox
+{
+	background: palette(base);
+	border: 2px solid palette(dark);
+    padding: 4px;
+}
+
+QComboBox QAbstractItemView
+{
+	border: 1px solid palette(shadow);
+	border-top: none;
+}
+QComboBox QAbstractItemView::focus
+{
+	border: 1px solid palette(shadow);
+	border-top: none;
+}
+QComboBox:!editable
+{
+	border: 1px solid palette(dark);
+	text-align: center;
+}
+QComboBox:!editable:focus
+{
+	border: 1px solid palette(highlight);
+}
+
+QComboBox::!editable:on
+{}
+
+QComboBox::drop-down:!editable
+{
+	background: palette(mid);
+	border: none;
+    border-left: 1px solid palette(dark);
+    width: 1em;
+}
+
+QComboBox::drop-down:!editable:on
+{}
+
+QComboBox::drop-down
+{
+	background: palette(mid);
+	border: none;
+    border-left: 1px solid palette(dark);
+    width: 1em;
+}
+QComboBox::down-arrow
+{
+    border: none;
+    border-right: 3px solid palette(mid);
+    border-top: 4px solid palette(midlight);
+    border-left: 3px solid palette(mid);
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+QComboBox::down-arrow:on
+{
+    border: none;
+    border-right: 3px solid palette(mid);
+    border-bottom: 4px solid palette(midlight);
+    border-left: 3px solid palette(mid);
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+
+/**********  Map  ***************/
+
+QAbstractViewItem, QAbstractScrollArea {
+    background-color: palette(base);
+    border: 1px solid palette(dark);
+    border-radius: 2px;
+}
+
+QHeaderView {
+    border-radius: 2px;
+}
+
+QHeaderView::section {
+     background-color: palette(mid);
+     padding: 4px;
+     border: none;
+     border-right: 1px solid palette(mid);
+     border-bottom: none;
+}
+
+/********** Menu **************/
+
+QMenu:item, QMenuBar::item {
+    padding: 2px 15px 2px 15px;
+    margin: 2px;
+    border-left: 2px solid transparent; /* reserve space for selection border */
+}
+
+QMenu:item:hover, QMenuBar:item:hover {
+    background: palette(highlight);
+    color: palette(highlighted-text)
+}
+
+QMenu:item:selected, QMenuBar:item:selected { /* when selected using mouse or keyboard */
+    background: palette(highlight);
+    color: palette(highlighted-text)
+}
+
+QMenu:item:pressed, QMenuBar:item:pressed {
+    background: palette(dark);
+    color: palette(text);
+}
+
+
+/********** Banner **************/
+
+QToolBar QLabel {
+    margin: 6px 3px;
+}
+
+QToolBar QLabel[image="true"] {
+    padding: -2px;
+    background-clip: border;
+    border-style: solid;
+    border-width: 3px;
+    border-color: palette(highlight);
+    background-color: palette(base);
+}
+
+QToolBar {
+    background-color: palette(midlight);
+    border-width: 0;
+    border-bottom: 4px solid;
+    border-color: palette(highlight);
+}
+
+QToolBar QPushButton {
+    background-color: palette(midlight);
+    border-width: 0;
+    border-bottom: 2px solid palette(highlight);
+    margin: 3px;
+}
+
+QToolBar QToolButton {
+    border-bottom: 2px solid palette(highlight);
+    margin: 3px;
+}
+
+
+/********** CheckBox **************/
+
+QCheckBox {
+    border-color: palette(dark);
+}
+
+QCheckBox::indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 0;
+    border-width: 1px;
+    border-style: solid;
+    border-color: palette(dark);
+}
+
+QCheckBox::indicator:unchecked {
+    background-color: palette(base);
+}
+
+QCheckBox::indicator:unchecked:hover {
+    border-color: palette(dark);
+    background-color: palette(midlight);
+}
+
+QCheckBox::indicator:checked {
+    background-color: palette(highlight);
+    image: url({icons.gui.checked-white});
+}
+
+QCheckBox::indicator:checked:hover {
+    border-color: palette(dark);
+    background-color: palette(midlight);
+}
+
+QCheckBox::indicator:indeterminate {
+    background-color: palette(highlight);
+    padding: 1px 5px;
+}
+
+/********** Dialog **************/
+
+QDialog, QWidget[dialog='true']
+{
+    color: palette(window-text);
+}
+
+/********** SubWindow **************/
+
+
+QDockWidget > QWidget {
+    background: palette(window);
+    margin: 10px 20px 10px 10px;
+}
+
+QDockWidget > QWidget > QWidget {
+    background: palette(window);
+}
+
+QDockWidget QMenuBar {
+    background-color: palette(window);
+    border: none;
+}
+
+QDockWidget QMenuBar:item {
+    margin: 0;
+    border: none;
+}
+
+FlowPage {
+    margin-bottom: 6px;
+    padding:0;
+}
+
+FlowPage NavigationBar {
+    color: palette(window-text);
+    border-style: solid;
+    border-bottom-width: 1px;
+    margin:0;
+}
+
+FlowPage NavigationBar QToolButton {
+    padding: 2px;
+    margin: 1px;
+    color: palette(window-text);
+}
+
+/************* Scrolling ***************/
+
+QScrollBar{
+    background:palette(base);
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+}
+
+QScrollBar:vertical{
+    background:palette(base);
+    width: 15px;
+    margin:0px;
+    padding: 10px 2px;
+}
+
+QScrollBar::handle:vertical{
+    min-width: 20px;
+    background-color: palette(button);
+    border: none;
+}
+
+QScrollBar::add-line:vertical{
+    height:10px;
+    width:10px;
+    background: palette(button);
+    subcontrol-position:bottom;
+    subcontrol-origin:padding ;
+}
+
+QScrollBar::sub-line:vertical{
+    height:10px;
+    width:10px;
+    background: palette(button);
+    subcontrol-position:top;
+    subcontrol-origin:margin;
+}
+
+QScrollBar:horizontal{
+    background:palette(base);
+    height:15px;
+    margin:0px;
+    padding: 1px 10px;
+}
+
+QScrollBar::handle:horizontal
+{
+    min-width: 20px;
+    background-color: palette(button);
+    border: none;
+}
+
+QScrollBar::add-line:horizontal
+{
+    height:10px;
+    width:10px;
+    background: palette(button);
+	subcontrol-position: right;
+	subcontrol-origin: margin;
+}
+
+QScrollBar::sub-line:horizontal
+{
+    height:10px;
+    width:10px;
+    background: palette(button);
+	subcontrol-position: left;
+	subcontrol-origin: margin;
+}
+
+
+QSlider::handle:horizontal{
+    border:0;
+}
+
+QSlider::handle:hover{
+    background:palette(highlight);
+}
+
+
+/********** SubWindow Form/Field **************/
+
+QTreeView[form_tree="true"] {
+    color: palette(window-text);
+}
+
+QTreeView[form_tree="true"]::item {
+    padding: 0px;
+    color: palette(red);
+}
+
+/********** SubWindow Title **************/
+
+QDockWidget > DockTitleBar > QWidget {
+    background-color: palette(mid);
+    border: 1px solid palette(dark);
+}
+
+QHeaderView::section {
+    color: palette(window-text);
+}
+
+QDockWidget::title
+{
+    text-align: center;
+    background-color: palette(mid);
+    border-bottom: 1px solid palette(dark);
+    margin-top: 2px;
+}
+
+/** Separator **/
+
+QMainWindow::separator {
+    background: palette(mid);
+    width: 2px; /* when vertical */
+    height: 2px; /* when horizontal */
+    margin: 2px;
+}
+
+QMainWindow::separator:hover {
+    background: palette(dark);
+}
+
+/********* Others *********/
+PopupMenu {
+    border: 1px solid palette(text);
+}
+
+PopupMenu QListWidget {
+    border: none;
+}
+
+PopupMenu QListWidget::item:hover {
+    background: palette(highlight);
+    color: palette(highlighted-text);
+}
+
+FlowView[current="true"] {
+    border: 1px solid palette(mid);
+}
+
+FlowView[current="false"] {
+    border: none;
+}
+
+/********* Tooltip **********/
+QToolTip{
+    border: 1px solid palette(mid);
+    background-color: palette(dark);
+}
+
+/********* ProgressBar **********/
+QProgressBar {
+    border: 2px solid palette(dark);
+    border-radius: 5px;
+    text-align: center;
+    background: palette(base);
+}
+
+QProgressBar::chunk {
+    background-color: palette(highlight);
+}
+
+QGroupBox {
+    border: 2px solid palette(text);
+    border-radius: 5px;
+    margin-top: 10px; /* leave space at the top for the title */
+}
+
+QGroupBox::title {
+    color: palette(text);
+    subcontrol-position: top left;
+    padding: 5px;
+    padding-top: -15px;
+}

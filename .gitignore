@@ -1,0 +1,9 @@
+*.pyc
+*.pyo
+*.sublime-project
+*.sublime-workspace
+*.log
+.idea
+.ssh_key
+.ssh_key.pub
+*.png~

@@ -1,0 +1,757 @@
+import os
+import updates
+import subprocess
+from qtpy import QtWidgets, QtCore, QtGui
+
+
+from qt_utils import PathEditor
+from smks_news_feed import SmksNewsFeed
+
+_LOCK = False
+
+
+def watch_process(process, window=None, timeout=-1, end_callback=None):
+    global _LOCK
+    import time
+    import random
+
+    if not process or process.returncode is not None:
+        return
+
+    try:
+        start = time.time()
+        while process and process.poll() is None:
+            if (time.time() - start) > timeout > 0:
+                raise RuntimeError('Timeout reached: process aborted')
+            else:
+                time.sleep(0.1)
+            while _LOCK:
+                time.sleep(0.1)
+            _LOCK = True
+            for stream in [process.stderr, process.stdout]:
+                if not stream:
+                    continue
+                line = stream.readline()
+                if line:
+                    line = line[:-1]
+                    try:
+                        line = line.decode("utf-8")
+                    except ValueError:
+                        continue
+                    if window:
+                        low_line = line.lower()
+                        if 'error' in low_line or ' end' in low_line or random.randint(0, 3) == 0:
+                            window.showMessage(line)
+                        else:
+                            print(line)
+            _LOCK = False
+    except (OSError, IOError, RuntimeError):
+        import traceback
+        traceback.print_exc()
+        if process and process.returncode is None:
+            try:
+                process.terminate()
+            except OSError:
+                pass
+        return process.returncode
+    out, err = process.communicate()
+    print(out, err)
+    if out:
+        out = out.decode().split('\n')[-2:]
+        if window and out:
+            window.showMessage('\n'.join(out))
+
+    if end_callback is not None:
+        try:
+            end_callback(process.returncode)
+        except TypeError as e:
+            print(e)
+            end_callback()
+    return process.returncode
+
+
+class ProcessWatcher(QtCore.QThread):
+
+    def __init__(self, process, window=None, timeout=-1, end_callback=None):
+        super(ProcessWatcher, self).__init__()
+        self._process = process
+        self._window = window
+        self._timeout = timeout
+        self._end_callback = end_callback
+        self._ended = False
+
+    def run(self):
+        watch_process(self._process, self._window, self._timeout, self._end_callback)
+        self._ended = True
+        self.exec_()
+
+    def is_alive(self):
+        return self.isRunning() and not self._ended
+
+
+class Thread(QtCore.QThread):
+
+    def __init__(self, target=None, args=None, kwargs=None):
+        super(Thread, self).__init__()
+        self.target = target
+        self._args = args or []
+        self._kwargs = kwargs or dict()
+        self._ended = False
+
+    def run(self):
+        self.target(*self._args, **self._kwargs)
+        self._ended = True
+        self.exec_()
+
+    def is_alive(self):
+        return self.isRunning() and not self._ended
+
+class RequirementsDialog(QtWidgets.QDialog):
+
+    def __init__(self, parent=None):
+        super(RequirementsDialog, self).__init__(parent)
+        # self.main_layout = QtWidgets.QH
+        # self.setLayout()
+
+
+# TODO make configuration window
+class LauncherDialog(QtWidgets.QMainWindow):
+
+    SUPA_NETWORK = "https://sites.google.com/supamonks.com/supageneral?pli=1&authuser=1"
+    SUPA_NETWORK_DOC = "https://sites.google.com/supamonks.com/workflows/accueil"
+    SUPA_DISCORD = "https://discord.gg/armdDJP"
+    SUPAMONKS_LETTER = "https://sites.google.com/supamonks.com/supanewsletter/accueil"
+    SUPA_TICKET_SUPPORT = "https://www.notion.so/supamonks/Tickets-page-d85b23a15c9947feacf4206ab2eca4d5"
+    SUPA_DISCORD_COMMAND = os.path.expanduser('~/AppData/Local/Discord/Update.exe')
+
+    def __init__(self):
+        from horoscope import get_today_horoscope
+        super(LauncherDialog, self).__init__()
+        self.main_widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.main_widget)
+        QtWidgets.QApplication.instance().setStyle(QtWidgets.QStyleFactory.create("windowsvista"))
+
+        self._process = []
+        self._threads = []
+        self._smks_process = None
+        self._loading_buttons = dict()
+
+        self.python2_path_preset = dict(
+            LOCAL='C:/software/PythonKBR',
+            SERVER='I:/bin/PythonKBR',
+            CUSTOM=None,
+        )
+        self.python3_path_preset = dict(
+            LOCAL='C:/software/Python3KBR',
+            SERVER='I:/bin/Python3KBR',
+            CUSTOM=None,
+        )
+
+        self.setWindowTitle("SMKS Launcher")
+        self.background_image = QtGui.QPixmap("images/launcher_background.jpg")
+        self._status_bar = self.statusBar()
+        self._status_type = ''
+        self.settings = QtCore.QSettings("SMKS_Launcher", "Supamonks")
+        self._lock_branches = False
+
+        python_group = QtWidgets.QGroupBox("Python")
+        self._python_group_toggle_button = QtWidgets.QPushButton()
+        self._python_path_preset_choice = QtWidgets.QComboBox()
+        self._python2_path_edit = PathEditor(label="Python2 (Maya/Nuke)")
+        self._python3_path_edit = PathEditor(label="Python3 (K/Muster/Blender)")
+        self._python_install_button = QtWidgets.QPushButton("Install")
+        self._python_update_button = QtWidgets.QPushButton("Update")
+
+        self._python_install_button.setObjectName("install_python")
+        self._python_update_button.setObjectName("update_python")
+
+        self._requirements_label = QtWidgets.QLabel("Packages")
+        self._requirements_preset = QtWidgets.QComboBox()
+        self._requirements_path_edit = PathEditor(placeholder="Requirements path")
+
+        update_group = QtWidgets.QGroupBox("Update SMKS Studio")
+        self._branch_choice = QtWidgets.QComboBox()
+        self._repo_path_edit = PathEditor()
+        self._smks_update_button = QtWidgets.QPushButton("Update")
+        self._smks_update_button.setObjectName("update_smks_studio")
+        self._loading_gif = QtGui.QMovie("./images/loading.gif")
+        self._loading_gif.frameChanged.connect(self._update_button_loading_icon)
+
+        self.config_choice = QtWidgets.QComboBox()
+        self._run_smks_studio_button = QtWidgets.QPushButton()
+        self._run_smks_studio_button.setObjectName("run_smks_studio")
+
+        self._run_smks_letter_button = QtWidgets.QPushButton()
+        self._run_smks_letter_button.setObjectName("run_smks_letter")
+
+        self._run_smks_network_button = QtWidgets.QPushButton()
+        self._run_smks_network_button.setObjectName("run_smks_network")
+
+        self._status_bar.setMinimumHeight(25)
+
+        self._python_update_button.clicked.connect(self._update_python)
+        self._python_install_button.clicked.connect(self._install_python)
+
+        self._python_group_toggle_button.clicked.connect(self.toggle_python_group)
+        self._python_path_preset_choice.currentIndexChanged.connect(self.handle_path_preset)
+        self._requirements_preset.currentIndexChanged.connect(self.handle_requirements_path_preset)
+        self._smks_update_button.clicked.connect(self.update_smks_studio)
+        self._run_smks_studio_button.clicked.connect(self.check_n_run_smks_studio)
+        self._run_smks_letter_button.clicked.connect(self.open_supa_newsletter)
+        self._run_smks_network_button.clicked.connect(self.open_supa_network)
+
+        main_layout = QtWidgets.QVBoxLayout(self.main_widget)
+        actions_layout = QtWidgets.QHBoxLayout()
+        python_layout = QtWidgets.QVBoxLayout(python_group)
+        python_path_layout = QtWidgets.QVBoxLayout()
+        requirements_layout = QtWidgets.QHBoxLayout()
+        python_buttons_layout = QtWidgets.QHBoxLayout()
+        update_layout = QtWidgets.QHBoxLayout(update_group)
+        runs_layout = QtWidgets.QHBoxLayout()
+
+        # main_layout.addLayout(actions_layout, 1)
+        main_layout.addWidget(python_group, 1)
+        main_layout.addStretch()
+        main_layout.addWidget(get_today_horoscope(),5)
+        main_layout.addWidget(SmksNewsFeed(),3)
+        main_layout.addWidget(update_group,1)
+        main_layout.addLayout(runs_layout, 2)
+
+        python_layout.addWidget(self._python_path_preset_choice)
+        python_layout.addLayout(python_path_layout)
+        python_layout.addLayout(requirements_layout)
+        python_layout.addWidget(self._requirements_path_edit)
+        python_layout.addLayout(python_buttons_layout)
+        python_layout.addWidget(self._python_group_toggle_button)
+        requirements_layout.addWidget(self._requirements_label, 2)
+        requirements_layout.addWidget(self._requirements_preset, 8)
+        python_path_layout.addWidget(self._python2_path_edit)
+        python_path_layout.addWidget(self._python3_path_edit)
+        python_buttons_layout.addWidget(self._python_install_button)
+        python_buttons_layout.addWidget(self._python_update_button)
+
+        update_layout.addWidget(self._branch_choice, 5)
+        update_layout.addWidget(self._repo_path_edit, 10)
+        update_layout.addStretch(2)
+        update_layout.addWidget(self._smks_update_button, 5)
+
+        runs_layout.addWidget(self._run_smks_letter_button, 1)
+        runs_layout.addWidget(self._run_smks_network_button, 1)
+        runs_layout.addWidget(self._run_smks_studio_button, 6)
+
+        # ### ICONS ###
+        icon = "P:/DEV/dev/K.png"
+        if not os.path.isfile(icon):
+            icon = "./images/K.png"
+
+        k_icon = QtGui.QIcon(icon)
+        self.setWindowIcon(k_icon)
+        self._run_smks_studio_button.setIcon(k_icon)
+        self._smks_update_button.setIcon(QtGui.QIcon("images/update.png"))
+        self._run_smks_letter_button.setIcon(QtGui.QIcon("images/supamonks_letter.png"))
+        self._run_smks_network_button.setIcon(QtGui.QIcon("images/supa_network.png"))
+
+        # https://openapplibrary.org/dev-tutorials/qt-icon-themes
+        self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-up.png"))
+
+        # ### SIZES ###
+        desktop = QtWidgets.QApplication.desktop()
+        desktop = desktop.screenGeometry(desktop.screenNumber())
+
+        self._python2_path_edit._label.setMinimumWidth(desktop.width()*0.05)
+        self._python3_path_edit._label.setMinimumWidth(desktop.width()*0.05)
+        # self._requirements_path._label.setMinimumWidth(desktop.width()*0.05)
+        self._run_smks_studio_button.setMinimumHeight(desktop.height()*0.1)
+        self._run_smks_letter_button.setMinimumHeight(desktop.height()*0.1)
+        self._run_smks_network_button.setMinimumHeight(desktop.height()*0.1)
+        self._run_smks_studio_button.setIconSize(QtCore.QSize(desktop.height()*0.06, desktop.height()*0.06))
+        self._run_smks_letter_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
+        self._run_smks_network_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
+        self._smks_update_button.setMinimumWidth(desktop.height() * 0.09)
+        self.resize(int(desktop.width()*0.36), int(desktop.height()*0.2))
+        self._python_group_toggle_button.setMaximumHeight(20)
+
+        # ### STYLE ###
+        self.apply_style()
+        with open('stylesheets/style.css') as fp:
+            style_data = fp.read()
+
+        self.setStyleSheet(style_data)
+        self._smks_update_button.setStyleSheet("background-color:rgb(125,175,136); color: #EEE;")
+        self._run_smks_studio_button.setStyleSheet(
+            "QPushButton:!hover {background-color:rgb(90,25,45); border: 2px outset rgb(75,50,55);}"
+            "QPushButton:hover {background-color:rgb(100,30,50); border: 2px solid palette(highlight);}"
+        )
+        self._run_smks_letter_button.setStyleSheet(
+            "QPushButton:!hover {background-color:rgb(230,230,230); border: 2px outset rgb(155,155,155);}"
+            "QPushButton:hover {background-color:rgb(240,240,240); border: 2px solid rgb(255,255,255);}"
+        )
+        self._run_smks_network_button.setStyleSheet(
+            "QPushButton:!hover {background-color:rgb(230,230,230); border: 2px outset rgb(155,155,155);}"
+            "QPushButton:hover {background-color:rgb(240,240,240); border: 2px solid rgb(255,255,255);}"
+        )
+
+        self.update_data()
+        self.toggle_python_group()
+
+        if "install_python" in QtWidgets.QApplication.instance().arguments():
+            if not os.path.isfile("C:\\.smks_installed"):
+                open("C:\\.smks_installed", 'w').close()
+                QtCore.QTimer.singleShot(1000, self._install_python)
+        if "update_python" in QtWidgets.QApplication.instance().arguments():
+            QtCore.QTimer.singleShot(1000, self._update_python)
+        if "update_smks" in QtWidgets.QApplication.instance().arguments():
+            QtCore.QTimer.singleShot(1000, self.update_smks_studio)
+
+    def _handle_branch_changed(self):
+        self.update_branches()
+        self.settings.setValue("_branch_choice", self._branch_choice.currentText())
+
+    def toggle_python_group(self):
+        hide = not self._python_path_preset_choice.isHidden()
+        if hide:
+            self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-down.png"))
+        else:
+            self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-up.png"))
+            self.handle_python_path_preset()
+            self.handle_requirements_path_preset()
+
+        self._python_path_preset_choice.setHidden(hide)
+        self._python_install_button.setHidden(hide)
+        self._python_update_button.setHidden(hide)
+        self._requirements_label.setHidden(hide)
+        self._requirements_preset.setHidden(hide)
+        self._repo_path_edit.setHidden(hide)
+
+    def handle_python_path_preset(self):
+        hide = self._python_path_preset_choice.currentText() != "CUSTOM"
+        self._python2_path_edit.setHidden(hide)
+        self._python3_path_edit.setHidden(hide)
+
+    def handle_requirements_path_preset(self):
+        hide = self._requirements_preset.currentText() != "CUSTOM"
+        self._requirements_path_edit.setHidden(hide)
+
+    def get_repo_path(self):
+        repo_path = self._repo_path_edit.get_edited_value().strip()
+        if repo_path:
+            return repo_path
+        else:
+            branch = self._branch_choice.currentText()
+            if branch == "OFFICIAL":
+                return "C:/software/smks_studio"
+            else:
+                return "C:/software/smks_studio_%s" % branch.replace(' ', '_')
+
+    def exit(self):
+        import time
+        self.showMessage("Reboot...")
+        time.sleep(1)
+        self.showMessage("Reboot !")
+        time.sleep(0.5)
+        os._exit(0)
+
+    def showMessage(self, message):
+        print(message)
+        if 'ended !' in message.lower():
+            self._status_type = 'ended'
+            self._status_bar.setStyleSheet("background-color: rgb(45,156,86);")
+        elif 'error' in message.lower():
+            self._status_type = 'error'
+            self._status_bar.setStyleSheet("background-color: rgb(178,45,86);")
+        elif self._status_type:
+            self._status_type = ''
+            self._status_bar.setStyleSheet("background-color: rgb(53,15,36);")
+        if len(message) < 75:
+            self._status_bar.showMessage(message)
+        else:
+            self._status_bar.showMessage("{}...{}".format(message[:50], message[74:]))
+
+    def get_python_paths(self):
+        path_preset = self._python_path_preset_choice.currentText()
+
+        if path_preset != "CUSTOM":
+            python2_path = self.python2_path_preset.get(path_preset, "C:/software/PythonKBR")
+            python3_path = self.python3_path_preset.get(path_preset, "C:/software/Python3KBR")
+        else:
+            python2_path = self._python2_path_edit.get_edited_value()
+            python3_path = self._python3_path_edit.get_edited_value()
+        return python2_path, python3_path
+
+    def _install_python(self):
+        import sys
+        import update_python
+        import threading
+
+        if not self._python_update_button.isVisible():
+            self.toggle_python_group()
+
+        self._run_smks_studio_button.setEnabled(False)
+
+        self._display_loading(self._python_install_button)
+
+        python2_path, python3_path = self.get_python_paths()
+        thread = Thread(target=update_python.install_python, args=[python2_path],
+                                  kwargs=dict(reinstall=True, messager=self.showMessage))
+        self._threads.append(thread)
+        thread.start()
+        reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
+        thread = Thread(target=update_python.install_python, args=[python3_path],
+                                  kwargs=dict(reinstall=reboot, messager=self.showMessage,
+                                              end_callback=self.exit if reboot else self._handle_install_end,
+                                              reboot_python=os.path.join(python3_path, "python") if reboot else None))
+        self._threads.append(thread)
+        QtCore.QTimer.singleShot(3000, thread.start)
+
+    def _update_python(self):
+        import functools
+
+        if not self._python_update_button.isVisible():
+            self.toggle_python_group()
+
+        self._display_loading(self._python_update_button)
+
+        requirements_path = self.get_requirements_path()
+        if not os.path.isfile(requirements_path):  # if requirements is not ready shift python update
+            self.update_smks_studio(end_callback=self._update_python)
+            return
+
+        python2_path, python3_path = self.get_python_paths()
+        QtCore.QTimer.singleShot(100, functools.partial(self._update_python2, python2_path, requirements_path))
+        QtCore.QTimer.singleShot(7000, functools.partial(self._update_python3, python3_path, requirements_path))
+
+    def _update_python2(self, python2_path, requirements_path):
+        import sys
+        import update_python
+        import threading
+
+        if not os.path.isdir(python2_path):
+            thread = Thread(target=update_python.install_python, args=[python2_path],
+                                      kwargs=dict(messager=self.showMessage))
+            self._threads.append(thread)
+            thread.start()
+        else:
+            process = update_python.update_python(python2_path, messager=self.showMessage,
+                                                  requirements=requirements_path)
+            watcher = ProcessWatcher(process, window=self)
+            watcher.start()
+            self._process.append(process)
+            self._threads.append(watcher)
+
+    def _update_python3(self, python3_path, requirements_path):
+        import sys
+        import update_python
+        import threading
+
+        if not os.path.isdir(python3_path):
+            reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
+            thread = Thread(target=update_python.install_python, args=[python3_path],
+                                      kwargs=dict(reinstall=reboot, messager=self.showMessage,
+                                                  end_callback=self.exit if reboot else self._handle_update_end,
+                                                  reboot_python=os.path.join(python3_path,
+                                                                             "python") if reboot else None))
+            self._threads.append(thread)
+            thread.start()
+        else:
+            process = update_python.update_python(python3_path, messager=self.showMessage,
+                                                  requirements=requirements_path)
+            watcher = ProcessWatcher(process, window=self, end_callback=self._handle_update_end)
+            watcher.start()
+            self._process.append(process)
+            self._threads.append(watcher)
+
+    def get_requirements_path(self, update=True):
+        requirement_preset = self._requirements_preset.currentText()
+        if requirement_preset == "CUSTOM":
+            return self._requirements_path_edit.get_edited_value()
+        if requirement_preset == "DEFAULT":
+            return os.path.join(self.get_repo_path(), "requirements.txt")
+        return "P:/DEV/dev/smks_studio/requirements.txt"
+
+    def _update_button_loading_icon(self):
+        for button, icon, stylesheet in list(self._loading_buttons.values()):
+            # prevent list changing during update
+            if button.property("loading"):
+                button.setIcon(self._loading_gif.currentPixmap())
+
+    def _display_loading(self, button):
+        button.setProperty("loading", True)
+        if not button.objectName() in self._loading_buttons:
+            self._loading_buttons[button.objectName()] = (button, button.icon(), button.styleSheet())
+        self._loading_gif.start()
+        button.setStyleSheet("background: rgb(35,90,150);")
+
+    def _hide_loading(self, button):
+        button.setProperty("loading", False)
+        button_id = button.objectName()
+        try:
+            button, icon, stylesheet = self._loading_buttons[button_id]
+        except KeyError:
+            return
+        else:
+            del self._loading_buttons[button_id]
+            button.setIcon(icon)
+            button.setStyleSheet(stylesheet)
+
+        if not self._loading_buttons:
+            self._loading_gif.stop()
+
+    def update_data(self):
+        self._python_path_preset_choice.addItem("LOCAL")
+        self._python_path_preset_choice.addItem("SERVER")
+        self._python_path_preset_choice.addItem("CUSTOM")
+
+        self.handle_python_path_preset()
+
+        self._requirements_preset.addItem("SERVER")
+        self._requirements_preset.addItem("DEFAULT")
+        self._requirements_preset.addItem("CUSTOM")
+
+        self.config_choice.addItem("")
+        self.config_choice.addItem("BETA")
+
+        self.handle_requirements_path_preset()
+
+        self._python2_path_edit.set_value("C:/software/PythonKBR")
+        self._python3_path_edit.set_value("C:/software/Python3KBR")
+        self._repo_path_edit._path_line_edit.setPlaceholderText("Install path (automatic if empty)")
+
+        self.update_branches()
+
+        current_branch = self.settings.value("_branch_choice", "OFFICIAL")
+        self._branch_choice.setCurrentText(current_branch)
+
+        self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
+
+    def update_branches(self):
+        import update_smks
+        if self._lock_branches:
+            return
+        self._lock_branches = True
+
+        icons = dict(
+            OFFICIAL="./images/supa.png",
+            BETA="./images/build.png"
+        )
+
+        for choice in updates.BRANCHES.keys():
+            if self._branch_choice.findText(choice) >= 0:
+                continue
+            if choice in icons:
+                self._branch_choice.addItem(QtGui.QIcon(icons[choice]), choice)
+            else:
+                self._branch_choice.addItem(choice)
+
+        repo_path = self.get_repo_path()
+        if repo_path and os.path.isdir(self.get_repo_path()):
+            subprocess.call([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
+            result = subprocess.check_output([update_smks.get_git(), 'tag'],
+                                             stderr=subprocess.STDOUT, cwd=self.get_repo_path())
+        else:
+            result = b''
+
+        result = result.decode('utf-8')
+        for choice in result.split('\n'):
+            if self._branch_choice.findText(choice) >= 0:
+                continue
+            if choice in icons:
+                self._branch_choice.addItem(QtGui.QIcon(icons[choice]), choice)
+            else:
+                self._branch_choice.addItem(choice)
+        self._lock_branches = False
+
+    def apply_style(self, widget=None):
+        widget = widget or QtWidgets.QApplication.instance()
+
+        settings = QtCore.QSettings(self)
+
+        id = QtGui.QFontDatabase.addApplicationFont("./font/lexend.ttf")
+        font = QtGui.QFont(QtGui.QFontDatabase.applicationFontFamilies(id)[0], 9)
+        font = settings.value('font', font)
+        widget.setFont(font)
+
+        if settings.value('style', ''):
+            QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create(settings.value('style')))
+
+        settings.beginGroup('colors')
+
+        # setup the palette
+        palette = QtWidgets.QApplication.palette()
+        # A color to indicate a selected item or the current item. By default, the highlight color is Qt.darkBlue.
+        palette.setColor(QtGui.QPalette.Highlight, settings.value('highlight', QtGui.QColor("#ad4e5c")))
+        palette.setColor(QtGui.QPalette.HighlightedText, settings.value('highlighted_text', QtGui.QColor("#42314a")))
+        palette.setColor(QtGui.QPalette.WindowText, settings.value('window_text', QtGui.QColor("#b9c2c8")))
+        palette.setColor(QtGui.QPalette.Window, settings.value('window', QtGui.QColor("#3e4041")))
+        palette.setColor(QtGui.QPalette.Text, settings.value('text', QtGui.QColor("#998888")))
+        palette.setColor(QtGui.QPalette.Base, settings.value('base', QtGui.QColor("#2b2b2b")))
+        palette.setColor(QtGui.QPalette.Dark, settings.value('dark', QtGui.QColor("#22222b")))
+        palette.setColor(QtGui.QPalette.Light, settings.value('light', QtGui.QColor("#151515")))
+        palette.setColor(QtGui.QPalette.Midlight, settings.value('midlight', QtGui.QColor("#911f36")))
+        palette.setColor(QtGui.QPalette.Mid, settings.value('mid', QtGui.QColor("#4b1b1f")))
+        palette.setColor(QtGui.QPalette.Button, settings.value('button', QtGui.QColor("#322F2F")))
+        palette.setColor(QtGui.QPalette.ButtonText, settings.value('button_text', QtGui.QColor("#a9b7c6")))
+
+        settings.endGroup()
+
+        widget.setPalette(palette)
+
+    def handle_path_preset(self):
+        hidden = self._python_path_preset_choice.currentText() != "CUSTOM"
+        self._python2_path_edit.setHidden(hidden)
+        self._python3_path_edit.setHidden(hidden)
+
+        enabled = self._python_path_preset_choice.currentText() != "SERVER"
+        self._python_install_button.setEnabled(enabled)
+        self._python_update_button.setEnabled(enabled)
+
+    def _handle_smks_update_end(self, return_code=0):
+        self.update_branches()
+        self._hide_loading(self._smks_update_button)
+
+    def _handle_install_end(self):
+        self._hide_loading(self._python_install_button)
+        self.showMessage("Install Ended !")
+        self._run_smks_studio_button.setEnabled(True)
+        # timer = QtCore.QTimer()
+        # timer.moveToThread(QtWidgets.QApplication.instance().thread())
+        # timer.setSingleShot(True)
+        # timer.timeout.connect(self._update_python)
+        QtCore.QTimer.singleShot(500, self._update_python)
+
+    def _handle_update_end(self, return_code=0):
+        self._hide_loading(self._python_update_button)
+        self.showMessage("Update Ended !")
+
+    def update_smks_studio(self, end_callback=None):
+        repo_path = self.get_repo_path()
+        process = updates.update_smks_studio(self._branch_choice.currentText(), repo_path)
+
+        if end_callback:
+            end_callback = lambda return_code, callback=end_callback: callback() and self._handle_smks_update_end()
+        else:
+            end_callback = self._handle_smks_update_end
+
+        watcher = ProcessWatcher(process, window=self, end_callback=end_callback)
+        watcher.start()
+
+        self._process.append(process)
+        self._threads.append(watcher)
+        self._display_loading(self._smks_update_button)
+
+    def ask_update(self):
+        update_ask_dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, "Update ?",
+                                                  "Seems there are available updates",
+                                                  QtWidgets.QMessageBox.NoButton, self)
+        update_ask_dialog.setStyleSheet("QPushButton{background:rgba(85,85,85);}")
+        button = update_ask_dialog.addButton("Yes, Do it steup !", QtWidgets.QMessageBox.ApplyRole)
+        button.setStyleSheet("background-color:rgb(125,185,136); color: #FFF;")
+        button.setIcon(QtGui.QIcon("./images/update.png"))
+        update_ask_dialog.addButton("Later, Run it Gros !", QtWidgets.QMessageBox.NoRole)
+
+        return update_ask_dialog.exec_() == update_ask_dialog.YesRole
+
+    def check_n_run_smks_studio(self):
+        import update_smks
+        import functools
+        self._display_loading(self._run_smks_studio_button)
+
+        python_path = os.path.join(self.get_repo_path().replace('/', '\\'), "smks_studio_home", "python")
+
+        try:
+            if not os.path.isdir(os.path.join(python_path, "third_party", "kabaret.blender_session", "src", "kabaret")):
+                raise ImportError("No blender session")
+            if not os.path.isdir(os.path.join(python_path, "third_party", "smks_core")):
+                raise ImportError("No SMKS Core")
+            if not os.path.isdir(python_path):
+                raise ImportError("No smks_studio")
+        except (subprocess.CalledProcessError, ImportError):
+            import traceback
+            traceback.print_exc()
+            print(python_path)
+            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
+            return
+
+        status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE, cwd=self.get_repo_path())
+        out, err = status_process.communicate()
+        if b"is behind" in out:
+            answer = self.ask_update()
+            if answer:
+                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
+                return
+        self.run_smks_studio()
+
+    def run_smks_studio(self):
+        import os
+        import functools
+
+        self._display_loading(self._run_smks_studio_button)
+
+        self._process = [process for process in self._process if process.returncode is None]
+        self._threads = [thread for thread in self._threads if thread.is_alive()]
+
+        if self._process or self._threads:
+            QtCore.QTimer.singleShot(1000, self.run_smks_studio)
+            self._run_smks_studio_button.setEnabled(False)
+            return
+
+        python_path = os.path.join(self.get_repo_path().replace('/', '\\'), "smks_studio_home", "python")
+
+        smks_studio_env = os.environ.copy()
+        smks_path = self.get_repo_path()
+        smks_studio_env["SMKS_STUDIO_ROOT"] = str(smks_path)
+
+        py2_path, py3_path = self.get_python_paths()
+        smks_studio_env["PYTHONDIR"] = py3_path.replace('/', '\\')
+        smks_studio_env["PYTHON2DIR"] = py2_path.replace('/', '\\')
+        smks_studio_env["PYTHON3DIR"] = py3_path.replace('/', '\\')
+        smks_studio_env["CONFIG"] = self.config_choice.currentText()
+
+        subprocess.Popen(['cmd', '/C', 'setx', 'PYTHONDIR', py3_path.replace('/', '\\')], shell=True)
+        subprocess.Popen(['cmd', '/C', 'setx', 'PYTHON2DIR', py2_path.replace('/', '\\')], shell=True)
+        subprocess.Popen(['cmd', '/C', 'setx', 'PYTHON3DIR', py3_path.replace('/', '\\')], shell=True)
+
+        try:
+            user_path = os.environ["USERPROFILE"]
+        except KeyError:
+            user_path = os.path.expanduser('~')
+
+        self._hide_loading(self._python_update_button)
+        QtCore.QTimer.singleShot(4000, self._handle_smks_runned)
+        self._smks_process = subprocess.Popen([os.path.join(os.path.dirname(__file__), "Run_smks_studio.bat")],
+                         env=smks_studio_env, shell=True, cwd=user_path)
+
+    @classmethod
+    def open_supa_network(cls):
+        os.startfile(cls.SUPA_NETWORK)
+
+    @classmethod
+    def open_supa_newsletter(cls):
+        os.startfile(cls.SUPAMONKS_LETTER)
+
+    def _handle_smks_runned(self):
+        self._run_smks_studio_button.setEnabled(True)
+        if self._smks_process:
+            self._smks_process.poll()
+            if self._smks_process and self._smks_process.returncode is not None and self._smks_process.returncode != 0:
+                QtCore.QTimer.singleShot(500, self._update_python)
+                QtCore.QTimer.singleShot(10000, self.run_smks_studio)
+            else:
+                self._hide_loading(self._smks_update_button)
+                self._hide_loading(self._run_smks_studio_button)
+        else:
+            self._hide_loading(self._run_smks_studio_button)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.drawPixmap(0, 0, self.width(), self.height(), self.background_image)
+        super(LauncherDialog, self).paintEvent(event)
+
+    def showEvent(self, event):
+        super(LauncherDialog, self).showEvent(event)
+        self.background_image = self.background_image.copy(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
+        self._smks_update_button.setIconSize(QtCore.QSize(self._smks_update_button.height() * 0.5, self._smks_update_button.height() * 0.5))
+        self.move(self.pos() + QtCore.QPoint(0, -200))
+
+    def closeEvent(self, event):
+        QtWidgets.QApplication.instance().exit(0)
