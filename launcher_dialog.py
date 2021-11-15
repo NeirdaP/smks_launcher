@@ -534,7 +534,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             BETA="./images/build.png"
         )
 
-        for choice in updates.BRANCHES.keys():
+        for choice in updates.get_branches().keys():
             if self._branch_choice.findText(choice) >= 0:
                 continue
             if choice in icons:
@@ -643,12 +643,13 @@ class LauncherDialog(QtWidgets.QMainWindow):
                                                   "Seems there are available updates",
                                                   QtWidgets.QMessageBox.NoButton, self)
         update_ask_dialog.setStyleSheet("QPushButton{background:rgba(85,85,85);}")
-        button = update_ask_dialog.addButton("Yes, Do it steup !", QtWidgets.QMessageBox.ApplyRole)
-        button.setStyleSheet("background-color:rgb(125,185,136); color: #FFF;")
-        button.setIcon(QtGui.QIcon("./images/update.png"))
+        update_button = update_ask_dialog.addButton("Yes, Do it steup !", QtWidgets.QMessageBox.ApplyRole)
+        update_button.setStyleSheet("background-color:rgb(125,185,136); color: #FFF;")
+        update_button.setIcon(QtGui.QIcon("./images/update.png"))
         update_ask_dialog.addButton("Later, Run it Gros !", QtWidgets.QMessageBox.NoRole)
 
-        return update_ask_dialog.exec_() == update_ask_dialog.YesRole
+        update_ask_dialog.exec_()
+        return update_ask_dialog.clickedButton() is update_button
 
     def check_n_run_smks_studio(self):
         import update_smks
