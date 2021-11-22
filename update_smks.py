@@ -92,12 +92,25 @@ if __name__ == '__main__':
                                             cwd=repo_path)
         subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", "--quiet", branch],
                               cwd=repo_path)
-        subprocess.check_call([git, "submodule", "update", "--init"],
-                              cwd=repo_path)
-        subprocess.check_call([git, "submodule", "update", "--remote", "--merge", "--quiet"], cwd=repo_path)
     except:
         sys.stderr.flush()
         raise RuntimeError("Update failed!")
     else:
         sys.stdout.flush()
-        print("Update Ended !")
+
+    for i in range(2):
+        try:
+            print("Update Submodules...")
+            subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
+        except:
+            print("Error on update")
+            sys.stderr.flush()
+        else:
+            sys.stdout.flush()
+            break
+
+    process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet",
+                                "smks_studio_home/python/third_party/smks_core"],
+                               cwd=repo_path)
+    process.wait(3)
+    print("Update Ended !")
