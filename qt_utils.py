@@ -127,9 +127,6 @@ class PathEditor(QtWidgets.QWidget):
             self._path_line_edit.setText(filepath)
             self._on_edited()
 
-from qtpy import QtWidgets, QtGui, QtCore
-from kabaret.app import resources
-
 
 class ColorPicker(QtWidgets.QDialog):
 
@@ -137,7 +134,7 @@ class ColorPicker(QtWidgets.QDialog):
         super(ColorPicker, self).__init__(None)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.color = QtGui.QColor()
-        self.dropper_pix = resources.get_icon(('icons.gui','dropper')).pixmap(20, 20)
+        self.dropper_pix = QtGui.QPixmap()
         desktop = QtWidgets.QApplication.desktop()
         self.screen_pix = QtGui.QPixmap.grabWindow(desktop.winId(), 0, 0, desktop.width(), desktop.height()).toImage()
         self.setFixedSize(desktop.width(), desktop.height())

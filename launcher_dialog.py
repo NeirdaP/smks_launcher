@@ -240,9 +240,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         runs_layout.addWidget(self._run_smks_studio_button, 6)
 
         # ### ICONS ###
-        icon = "P:/DEV/dev/K.png"
-        if not os.path.isfile(icon):
-            icon = "./images/K.png"
+        icon = "./images/K.png"
 
         k_icon = QtGui.QIcon(icon)
         self.setWindowIcon(k_icon)
@@ -264,7 +262,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_studio_button.setMinimumHeight(desktop.height()*0.1)
         self._run_smks_letter_button.setMinimumHeight(desktop.height()*0.1)
         self._run_smks_network_button.setMinimumHeight(desktop.height()*0.1)
-        self._run_smks_studio_button.setIconSize(QtCore.QSize(desktop.height()*0.06, desktop.height()*0.06))
+        self._run_smks_studio_button.setIconSize(QtCore.QSize(desktop.height()*0.05, desktop.height()*0.05))
         self._run_smks_letter_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
         self._run_smks_network_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
         self._smks_update_button.setMinimumWidth(desktop.height() * 0.09)
@@ -277,10 +275,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
             style_data = fp.read()
 
         self.setStyleSheet(style_data)
-        self._smks_update_button.setStyleSheet("background-color:rgb(125,175,136); color: #EEE;")
+        self._smks_update_button.setStyleSheet("background-color:rgb(125,150,215); color: #EEE;")
         self._run_smks_studio_button.setStyleSheet(
-            "QPushButton:!hover {background-color:rgb(90,25,45); border: 2px outset rgb(75,50,55);}"
-            "QPushButton:hover {background-color:rgb(100,30,50); border: 2px solid palette(highlight);}"
+            "QPushButton {border-radius: 5px;}"
+            "QPushButton:!hover {background-color:rgb(125,180,136); border: 3px outset rgb(60,90,55);}"
+            "QPushButton:hover {background-color:rgb(135,190,145); border: 2px solid palette(highlight);}"
         )
         self._run_smks_letter_button.setStyleSheet(
             "QPushButton:!hover {background-color:rgb(230,230,230); border: 2px outset rgb(155,155,155);}"
@@ -295,8 +294,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self.toggle_python_group()
 
         if "install_python" in QtWidgets.QApplication.instance().arguments():
-            if not os.path.isfile("C:\\.smks_installed"):
-                open("C:\\.smks_installed", 'w').close()
+            flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
+            if not os.path.isfile("C:\\.smks_installed") and not os.path.isfile(flag_path):
+                open(flag_path, 'w').close()
                 QtCore.QTimer.singleShot(1000, self._install_python)
         if "update_python" in QtWidgets.QApplication.instance().arguments():
             QtCore.QTimer.singleShot(1000, self._update_python)
@@ -519,9 +519,13 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self.update_branches()
 
         current_branch = self.settings.value("_branch_choice", "OFFICIAL")
-        self._branch_choice.setCurrentText(current_branch)
 
-        self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
+        try:
+            self._branch_choice.setCurrentText(current_branch)
+        except AttributeError:  # PySide compatibility
+            pass
+        else:
+            self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
 
     def update_branches(self):
         import update_smks
