@@ -519,6 +519,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._loading_gif.stop()
 
     def update_data(self):
+        import update_smks
         self._python_path_preset_choice.addItem("LOCAL")
         self._python_path_preset_choice.addItem("SERVER")
         self._python_path_preset_choice.addItem("CUSTOM")
@@ -548,6 +549,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             pass
         else:
             self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
+        subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
 
     def update_branches(self):
         import update_smks
