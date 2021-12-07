@@ -730,6 +730,15 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
             return
 
+        status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
+                                          stderr=subprocess.PIPE, cwd=self.get_repo_path())
+        out, err = status_process.communicate()
+        if b"is behind" in out:
+            answer = self.ask_update()
+            if answer:
+                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
+                return
+
         package_last_update = self.get_last_packages_update()
 
         log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
@@ -740,14 +749,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
             return
 
-        status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE, cwd=self.get_repo_path())
-        out, err = status_process.communicate()
-        if b"is behind" in out:
-            answer = self.ask_update()
-            if answer:
-                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
-                return
         self.run_smks_studio()
 
     def run_smks_studio(self, *args):  # *args for callback
