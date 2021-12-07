@@ -549,7 +549,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
             pass
         else:
             self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
-        subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
 
     def update_branches(self):
         import update_smks
@@ -714,6 +713,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         import utils
 
         self._display_loading(self._run_smks_studio_button)
+        fetch_process = subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
 
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
@@ -729,16 +729,17 @@ class LauncherDialog(QtWidgets.QMainWindow):
             import traceback
             traceback.print_exc()
             print(python_path)
-            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
+            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
             return
 
+        fetch_process.wait()
         status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE, cwd=self.get_repo_path())
         out, err = status_process.communicate()
         if b"is behind" in out:
             answer = self.ask_update()
             if answer:
-                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
+                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
                 return
 
         package_last_update = self.get_last_packages_update()
