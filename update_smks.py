@@ -104,13 +104,11 @@ if __name__ == '__main__':
             subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
         except:
             print("Error on update")
-            sys.stderr.flush()
         else:
-            sys.stdout.flush()
             break
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet",
                                 "smks_studio_home/python/third_party/smks_core"],
                                cwd=repo_path)
-    process.wait(3)
+    process.wait()
     print("Update Ended !")

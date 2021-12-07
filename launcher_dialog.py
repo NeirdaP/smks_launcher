@@ -710,17 +710,19 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def check_n_run_smks_studio(self):
         import update_smks
         import functools
+        import shutil
         import utils
 
         self._display_loading(self._run_smks_studio_button)
 
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
+        third_party = os.path.join(python_path, "third_party")
 
         try:
-            if not os.path.isdir(os.path.join(python_path, "third_party", "kabaret.blender_session", "src", "kabaret")):
+            if not os.path.isdir(os.path.join(third_party, "kabaret.blender_session", "src", "kabaret")):
                 raise ImportError("No blender session")
-            if not os.path.isdir(os.path.join(python_path, "third_party", "smks_core")):
+            if not os.path.isdir(os.path.join(third_party, "smks_core")):
                 raise ImportError("No SMKS Core")
             if not os.path.isdir(python_path):
                 raise ImportError("No smks_studio")
@@ -728,6 +730,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             import traceback
             traceback.print_exc()
             print(python_path)
+            if os.path.isdir(os.path.join(third_party, "kabaret.blender_session")):
+                shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
+            if os.path.isdir(os.path.join(third_party, "smks_core")):
+                shutil.rmtree(os.path.join(third_party, "smks_core"))
+            if self.thread() == QtCore.QThread.currentThread():
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Need Update",
+                                  "Some modules should be downloaded before running SMKS Studio",
+                                  QtWidgets.QMessageBox.Ok, self).exec_()
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
             return
 
@@ -749,6 +759,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         out, err = log_process.communicate()
         requirements_last_update = int(out)
         if requirements_last_update != package_last_update:
+            if self.thread() == QtCore.QThread.currentThread():
+                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Need Update",
+                                  "Some package needs update", QtWidgets.QMessageBox.Ok, self).exec_()
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
             return
 
