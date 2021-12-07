@@ -11,10 +11,12 @@ cd /D %PYTHONDIR%
 %PYTHONDIR%\python -m virtualenv smks_env
 %PYTHONDIR%\python -m virtualenv maya_env
 
+echo Update Smks Env
+
 pushd %PYTHONDIR%\smks_env
 cd /D %PYTHONDIR%\smks_env
 call Scripts\activate.bat
-python -m pip install --no-index --find-links="I:\python_packages\dists" --upgrade -r %SMKS_STUDIO_ROOT%\requirements.txt
+python -m pip install --no-index --find-links="I:\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
 
 echo %PYTHONDIR%|find "3" >nul
 if errorlevel 1 (echo "Python 2 ?") else python -m pip install --no-index --find-links="I:\python_packages\dists" PySide2==5.15.0
@@ -22,10 +24,13 @@ if errorlevel 1 (echo "Python 2 ?") else python -m pip install --no-index --find
 call Scripts\deactivate.bat
 popd
 
+echo ---------------
+echo Update Maya Env
+
 pushd %PYTHONDIR%\maya_env
 cd /D %PYTHONDIR%\maya_env
 call Scripts\activate.bat
-python -m pip install --no-index --find-links="I:\python_packages\dists" --upgrade -r %SMKS_STUDIO_ROOT%\requirements.txt
+python -m pip install --no-index --find-links="I:\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
 call Scripts\deactivate.bat
 popd
 

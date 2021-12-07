@@ -496,3 +496,20 @@ def find_common_dirs(files, depth_lower_limit=3):
         if ok:
             commons.append(root)
     return commons
+
+
+def get_os_data_path(subfolder=''):
+    """
+    :return: data folder path given by the system
+    """
+    import os
+    import tempfile
+
+    data_paths = [os.environ.get("APPDATA"), os.environ.get("CommonProgramFiles(x86)"),
+                   os.environ.get("CommonProgramFiles"), os.environ.get("ProgramData")]
+
+    for path in data_paths:
+        if os.path.isdir(path):
+            return os.path.join(path, subfolder) if subfolder else path
+
+    return os.path.join(tempfile.gettempdir(), subfolder) if subfolder else tempfile.gettempdir()

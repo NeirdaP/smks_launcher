@@ -1,4 +1,6 @@
 import os
+
+import file
 import updates
 import subprocess
 from qtpy import QtWidgets, QtCore, QtGui
@@ -17,9 +19,9 @@ def watch_process(process, window=None, timeout=-1, end_callback=None):
 
     if not process or process.returncode is not None:
         return
+    start = time.time()
 
     try:
-        start = time.time()
         while process and process.poll() is None:
             if (time.time() - start) > timeout > 0:
                 raise RuntimeError('Timeout reached: process aborted')
@@ -45,21 +47,32 @@ def watch_process(process, window=None, timeout=-1, end_callback=None):
                         else:
                             print(line)
             _LOCK = False
-    except (OSError, IOError, RuntimeError):
+    except OSError:
+        print("Cannot fetch outputs of process {}".format(process))
+        while process and process.poll() is None:
+            if (time.time() - start) > timeout > 0:
+                raise RuntimeError('Timeout reached: process aborted')
+            else:
+                time.sleep(0.1)
+    except (IOError, RuntimeError):
         import traceback
         traceback.print_exc()
+        process.poll()
         if process and process.returncode is None:
             try:
                 process.terminate()
             except OSError:
                 pass
+        print("Ended with status {}".format(process.returncode))
         return process.returncode
-    out, err = process.communicate()
-    print(out, err)
-    if out:
-        out = out.decode().split('\n')[-2:]
-        if window and out:
-            window.showMessage('\n'.join(out))
+    else:
+        out, err = process.communicate()
+        if out:
+            out = out.decode()
+            if window and out:
+                window.showMessage(out)
+        print(out, err)
+    print("Ended with status {}".format(process.returncode))
 
     if end_callback is not None:
         try:
@@ -290,8 +303,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
             "QPushButton:hover {background-color:rgb(240,240,240); border: 2px solid rgb(255,255,255);}"
         )
 
-        self.update_data()
+        self._python2_path_edit.setHidden(True)
+        self._python3_path_edit.setHidden(True)
         self.toggle_python_group()
+
+        QtCore.QTimer.singleShot(200, self.update_data)
 
         if "install_python" in QtWidgets.QApplication.instance().arguments():
             flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
@@ -403,7 +419,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._threads.append(thread)
         QtCore.QTimer.singleShot(3000, thread.start)
 
-    def _update_python(self):
+    def _update_python(self, end_callback=None):
         import functools
 
         if not self._python_update_button.isVisible():
@@ -417,10 +433,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return
 
         python2_path, python3_path = self.get_python_paths()
-        QtCore.QTimer.singleShot(100, functools.partial(self._update_python2, python2_path, requirements_path))
-        QtCore.QTimer.singleShot(7000, functools.partial(self._update_python3, python3_path, requirements_path))
+        QtCore.QTimer.singleShot(
+            100, functools.partial(self._update_python2, python2_path, requirements_path)
+        )
+        QtCore.QTimer.singleShot(
+            7000, functools.partial(self._update_python3, python3_path, requirements_path, end_callback)
+        )
 
-    def _update_python2(self, python2_path, requirements_path):
+    def _update_python2(self, python2_path, requirements_path, end_callback=None):
         import sys
         import update_python
         import threading
@@ -433,12 +453,13 @@ class LauncherDialog(QtWidgets.QMainWindow):
         else:
             process = update_python.update_python(python2_path, messager=self.showMessage,
                                                   requirements=requirements_path)
-            watcher = ProcessWatcher(process, window=self)
+            watcher = ProcessWatcher(process, window=self, end_callback=end_callback)
             watcher.start()
             self._process.append(process)
             self._threads.append(watcher)
+        self.update_last_packages_update()
 
-    def _update_python3(self, python3_path, requirements_path):
+    def _update_python3(self, python3_path, requirements_path, end_callback=None):
         import sys
         import update_python
         import threading
@@ -447,7 +468,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
             thread = Thread(target=update_python.install_python, args=[python3_path],
                                       kwargs=dict(reinstall=reboot, messager=self.showMessage,
-                                                  end_callback=self.exit if reboot else self._handle_update_end,
+                                                  end_callback=end_callback or (self.exit if reboot else self._handle_update_end),
                                                   reboot_python=os.path.join(python3_path,
                                                                              "python") if reboot else None))
             self._threads.append(thread)
@@ -455,10 +476,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
         else:
             process = update_python.update_python(python3_path, messager=self.showMessage,
                                                   requirements=requirements_path)
-            watcher = ProcessWatcher(process, window=self, end_callback=self._handle_update_end)
+            watcher = ProcessWatcher(process, window=self, end_callback=end_callback or self._handle_update_end)
             watcher.start()
             self._process.append(process)
             self._threads.append(watcher)
+        self.update_last_packages_update()
 
     def get_requirements_path(self, update=True):
         requirement_preset = self._requirements_preset.currentText()
@@ -503,8 +525,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self.handle_python_path_preset()
 
-        self._requirements_preset.addItem("SERVER")
         self._requirements_preset.addItem("DEFAULT")
+        self._requirements_preset.addItem("SERVER")
         self._requirements_preset.addItem("CUSTOM")
 
         self.config_choice.addItem("")
@@ -616,10 +638,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._hide_loading(self._python_install_button)
         self.showMessage("Install Ended !")
         self._run_smks_studio_button.setEnabled(True)
-        # timer = QtCore.QTimer()
-        # timer.moveToThread(QtWidgets.QApplication.instance().thread())
-        # timer.setSingleShot(True)
-        # timer.timeout.connect(self._update_python)
         QtCore.QTimer.singleShot(500, self._update_python)
 
     def _handle_update_end(self, return_code=0):
@@ -655,12 +673,48 @@ class LauncherDialog(QtWidgets.QMainWindow):
         update_ask_dialog.exec_()
         return update_ask_dialog.clickedButton() is update_button
 
+    def get_last_packages_update(self):
+        launcher_data_folder = file.get_os_data_path("smks_launcher")
+
+        try:
+            os.makedirs(launcher_data_folder)
+        except OSError:
+            pass
+
+        update_file = os.path.join(launcher_data_folder, "requirements_last_update")
+
+        if not os.path.isfile(update_file):
+            return 0
+
+        with open(update_file) as fp:
+            return int(fp.read())
+
+    def update_last_packages_update(self):
+        import update_smks
+        launcher_data_folder = file.get_os_data_path("smks_launcher")
+
+        try:
+            os.makedirs(launcher_data_folder)
+        except OSError:
+            pass
+
+        log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
+        out, err = log_process.communicate()
+
+        update_file = os.path.join(launcher_data_folder, "requirements_last_update")
+        with open(update_file, 'wb') as fp:
+            fp.write(out)
+
     def check_n_run_smks_studio(self):
         import update_smks
         import functools
+        import utils
+
         self._display_loading(self._run_smks_studio_button)
 
-        python_path = os.path.join(self.get_repo_path().replace('/', '\\'), "smks_studio_home", "python")
+        repo_path = self.get_repo_path().replace('/', os.path.sep)
+        python_path = os.path.join(repo_path, "smks_studio_home", "python")
 
         try:
             if not os.path.isdir(os.path.join(python_path, "third_party", "kabaret.blender_session", "src", "kabaret")):
@@ -676,6 +730,16 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.run_smks_studio))
             return
 
+        package_last_update = self.get_last_packages_update()
+
+        log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
+        out, err = log_process.communicate()
+        requirements_last_update = int(out)
+        if requirements_last_update != package_last_update:
+            QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
+            return
+
         status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE, cwd=self.get_repo_path())
         out, err = status_process.communicate()
@@ -686,11 +750,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 return
         self.run_smks_studio()
 
-    def run_smks_studio(self):
+    def run_smks_studio(self, *args):  # *args for callback
         import os
         import functools
 
         self._display_loading(self._run_smks_studio_button)
+
+        for process in self._process:
+            process.poll()
 
         self._process = [process for process in self._process if process.returncode is None]
         self._threads = [thread for thread in self._threads if thread.is_alive()]
@@ -756,7 +823,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         super(LauncherDialog, self).showEvent(event)
         self.background_image = self.background_image.copy(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
         self._smks_update_button.setIconSize(QtCore.QSize(self._smks_update_button.height() * 0.5, self._smks_update_button.height() * 0.5))
-        self.move(self.pos() + QtCore.QPoint(0, -200))
+        new_pos = self.pos()
+        new_pos.setY(max(50, new_pos.y() - 200))
+        self.move(new_pos)
 
     def closeEvent(self, event):
         QtWidgets.QApplication.instance().exit(0)
