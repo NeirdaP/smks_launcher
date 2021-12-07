@@ -713,7 +713,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         import utils
 
         self._display_loading(self._run_smks_studio_button)
-        fetch_process = subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
 
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
@@ -732,6 +731,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
             return
 
+        fetch_process = subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
         fetch_process.wait()
         status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE, cwd=self.get_repo_path())
