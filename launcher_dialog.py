@@ -83,23 +83,139 @@ def watch_process(process, window=None, timeout=-1, end_callback=None):
     return process.returncode
 
 
-class ProcessWatcher(QtCore.QThread):
+class ProcessWatcher(QtCore.QObject):
 
     def __init__(self, process, window=None, timeout=-1, end_callback=None):
-        super(ProcessWatcher, self).__init__()
+        super(ProcessWatcher, self).__init__(window)
         self._process = process
         self._window = window
         self._timeout = timeout
         self._end_callback = end_callback
         self._ended = False
 
-    def run(self):
-        watch_process(self._process, self._window, self._timeout, self._end_callback)
+        self._timer = QtCore.QTimer(self)
+        self._timer.setSingleShot(True)
+
+        self._start_time = 0
+        self._end_time = 0
+
+    def handle_process_output(self):
+        import time
+        import random
+
+        global _LOCK
+
+        while _LOCK:
+            time.sleep(0.1)
+        _LOCK = True
+
+        lines = []
+
+        for stream in [self._process.stderr, self._process.stdout]:
+            if not stream:
+                continue
+            line = stream.readline()
+            if line:
+                line = line[:-1]
+                try:
+                    line = line.decode("utf-8")
+                except ValueError:
+                    continue
+                else:
+                    lines.append(line)
+            else:
+                break
+
+        if self._window:
+            line = '\n'.join(lines)
+            low_line = line.lower()
+            if 'error' in low_line or ' end' in low_line or random.randint(0, 3) == 0:
+                self._window.showMessage(line)
+            else:
+                print(line)
+        _LOCK = False
+
+    def _end(self):
         self._ended = True
-        self.exec_()
+        self._timer.stop()
+        self._timer.deleteLater()
+        self.deleteLater()
+
+    def _handle_os_error(self):
+        import time
+        print("Cannot fetch outputs of process {}".format(self._process))
+        while self._process and self._process.poll() is None:
+            if (time.time() - self._start_time) > self._timeout > 0:
+                raise RuntimeError('Timeout reached: process aborted')
+        self._end()
+        return self._process.returncode or -1
+
+    def _handle_process_error(self):
+        import traceback
+        traceback.print_exc()
+        self._process.poll()
+        if self._process and self._process.returncode is None:
+            try:
+                self._process.terminate()
+            except OSError:
+                pass
+        print("Ended with status {}".format(self._process.returncode))
+        self._end()
+        return self._process.returncode or -1
+
+    def _handle_process_normal_end(self):
+        out, err = self._process.communicate()
+        if out:
+            out = out.decode()
+            if self._window and out:
+                self._window.showMessage(out)
+        print(out, err)
+        print("Ended with status {}".format(self._process.returncode))
+
+        if self._process.returncode != 0:
+            print("WARNING: Something get wrong with the process {}".format(self._process))
+
+        if self._end_callback is not None:
+            try:
+                self._end_callback(self._process.returncode)
+            except TypeError as e:
+                print(e)
+                self._end_callback()
+        self._end()
+        return self._process.returncode
+
+    def watch_process(self):
+        import time
+        if not self._process:
+            raise RuntimeError("Process to watch does not exist !")
+
+        try:
+            if self._process.poll() is None:
+                if (time.time() - self._start_time) > self._timeout > 0:
+                    raise RuntimeError('Timeout reached: process aborted')
+                self.handle_process_output()
+        except OSError:
+            return self._handle_os_error()
+        except (IOError, RuntimeError):
+            return self._handle_process_error()
+
+        if self._process.returncode is not None:
+            return self._handle_process_normal_end()
+        self._timer.start(300)
+
+        return None
+
+    def run(self):
+        import time
+        self._start_time = time.time()
+        self._timer.timeout.connect(self.watch_process)
+        self._timer.start(30)
+
+    def start(self):
+        self.run()
 
     def is_alive(self):
-        return self.isRunning() and not self._ended
+        return not self._ended
 
 
 class Thread(QtCore.QThread):
@@ -368,6 +484,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         os._exit(0)
 
     def showMessage(self, message):
+        if self.thread() != QtCore.QThread.currentThread():
+            print("WARNING, not the correct thread {}".format(QtCore.QThread.currentThread()))
         print(message)
         if 'ended !' in message.lower():
             self._status_type = 'ended'
@@ -441,9 +559,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         )
 
     def _update_python2(self, python2_path, requirements_path, end_callback=None):
-        import sys
         import update_python
-        import threading
 
         if not os.path.isdir(python2_path):
             thread = Thread(target=update_python.install_python, args=[python2_path],
@@ -462,7 +578,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def _update_python3(self, python3_path, requirements_path, end_callback=None):
         import sys
         import update_python
-        import threading
 
         if not os.path.isdir(python3_path):
             reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
