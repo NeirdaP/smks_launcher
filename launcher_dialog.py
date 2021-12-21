@@ -173,7 +173,7 @@ class ProcessWatcher(QtCore.QObject):
         print("Ended with status {}".format(self._process.returncode))
 
         if self._process.returncode != 0:
-            print("WARNING: Something get wrong with the process {}".format(self._process))
+            print("WARNING: Something get wrong with the process {}".format(self._process.pid))
 
         if self._end_callback is not None:
             try:
@@ -487,10 +487,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if self.thread() != QtCore.QThread.currentThread():
             print("WARNING, not the correct thread {}".format(QtCore.QThread.currentThread()))
         print(message)
-        if 'ended !' in message.lower():
+        message_low = message.lower()
+        if 'ended !' in message_low:
             self._status_type = 'ended'
             self._status_bar.setStyleSheet("background-color: rgb(45,156,86);")
-        elif 'error' in message.lower():
+        elif 'error' in message_low or ' fail' in message_low:
             self._status_type = 'error'
             self._status_bar.setStyleSheet("background-color: rgb(178,45,86);")
         elif self._status_type:
@@ -758,7 +759,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     def _handle_update_end(self, return_code=0):
         self._hide_loading(self._python_update_button)
-        self.showMessage("Update Ended !")
+        if return_code != 0:
+            self.showMessage("ERROR: Update Failed !")
+        else:
+            self.showMessage("Update Ended !")
 
     def update_smks_studio(self, end_callback=None):
         repo_path = self.get_repo_path()
