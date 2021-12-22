@@ -68,6 +68,8 @@ def get_today_horoscope():
                 )
                 for sign in SIGNS
             )
+
+            self.setMinimumSize(200, 200)
             self._callback = HoroscopeCallback(self)
 
         def showEvent(self, event):
@@ -75,10 +77,22 @@ def get_today_horoscope():
             self.reload_page()
 
         def _fetch_page(self, sign, load_it=True):
-            link = HOROSCOPE_LINK.format(sign.lower())
-            page = request.urlopen(link)
-            self._pages[sign] = page.read().decode('utf-8')
-            if load_it:
+            import threading
+
+            loaded_page = self._pages.get(sign)
+            if loaded_page is None:
+                self._pages[sign] = loaded_page = ''
+
+                def load_page():
+                    link = HOROSCOPE_LINK.format(sign.lower())
+                    self._pages[sign] = request.urlopen(link).read().decode('utf-8')
+
+                thread = threading.Thread(target=load_page)
+                thread.start()
+
+            if not len(loaded_page):
+                QtCore.QTimer.singleShot(100, lambda _sign=sign, _load=load_it: self._fetch_page(sign, _load))
+            elif load_it:
                 QtCore.QTimer.singleShot(100, lambda _sign=sign: self.reload_page(_sign))
 
         @QtCore.Slot(str)
@@ -95,7 +109,13 @@ def get_today_horoscope():
             ssl._create_default_https_context = ssl._create_unverified_context
 
             if sign not in self._pages:
-                QtCore.QTimer.singleShot(50, lambda _sign=sign:self._fetch_page(sign))
+                self.setHtml('<head>'
+                             '<title>Clairoscope</title>'
+                             '<link href="stylesheets/horoscope.css" rel="stylesheet" type="text/css"/>'
+                             '</head>'
+                             '<html><body id="body">{}</body></html>'.format(self._buttons_html),
+                             QUrl("file:///./horoscope.html"))
+                QtCore.QTimer.singleShot(50, lambda _sign=sign: self._fetch_page(sign))
                 return
 
             content = self._pages[sign]
@@ -118,24 +138,32 @@ def get_today_horoscope():
                 button_html = self._buttons_html+"\n\t<div class=\"menu_horo\">"
                 content = button_html.join(content.split('<div class="menu_horo">', 1))
 
-            try:
-                tree = ET.fromstring(content)
-            except ET.ParseError as e:
-                import traceback
-                traceback.print_exc()
-                content = content.replace("<div class=\"menu_horo\">", "<div class=\"menu_horo\" hidden>")
-                label = content
-            else:
-                for div in tree.iterfind("div"):
-                    if "menu" in div.attrib["class"]:
-                        tree.remove(div)
+            for i in range(10):
+                try:
+                    tree = ET.fromstring(content)
+                except ET.ParseError as e:
+                    if i == 7:
+                        import traceback
+                        traceback.print_exc()
+                        content = content.replace("<div class=\"menu_horo\">", "<div class=\"menu_horo\" hidden>")
+                        label = content
+                        break
+                    else:
+                        content = content.split('\n')
+                        content[e.position[0] - 1] = content[e.position[0] - 1].replace('&', '')
+                        content = '\n'.join(content)
+                else:
+                    for div in tree.iterfind("div"):
+                        if "menu" in div.attrib["class"]:
+                            tree.remove(div)
 
-                for p in tree.iter("p"):
-                    if "class" in p.attrib and "nav" in p.attrib["class"]:
-                        p.clear()
-                        del p
+                    for p in tree.iter("p"):
+                        if "class" in p.attrib and "nav" in p.attrib["class"]:
+                            p.clear()
+                            del p
 
-                label = ET.tostring(tree, method='html', encoding='utf-8').decode()
+                    label = ET.tostring(tree, method='html', encoding='utf-8').decode()
+                    break
 
             channel = QWebChannel(self.page())
             channel.registerObject("qt_view", self._callback)

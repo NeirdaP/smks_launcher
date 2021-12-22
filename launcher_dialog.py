@@ -265,6 +265,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._smks_process = None
         self._loading_buttons = dict()
 
+        self._tags = []
+        self._tags_process = None
+
         self.python2_path_preset = dict(
             LOCAL='C:/software/PythonKBR',
             SERVER='I:/bin/PythonKBR',
@@ -368,6 +371,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         runs_layout.addWidget(self._run_smks_network_button, 1)
         runs_layout.addWidget(self._run_smks_studio_button, 6)
 
+        self._fetch_tags()
+
         # ### ICONS ###
         icon = "./images/K.png"
 
@@ -421,9 +426,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self._python2_path_edit.setHidden(True)
         self._python3_path_edit.setHidden(True)
+        self._requirements_path_edit.setHidden(True)
         self.toggle_python_group()
-
-        QtCore.QTimer.singleShot(200, self.update_data)
 
         if "install_python" in QtWidgets.QApplication.instance().arguments():
             flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
@@ -470,7 +474,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return repo_path
         else:
             branch = self._branch_choice.currentText()
-            if branch == "OFFICIAL":
+            if branch == "OFFICIAL" or not branch:
                 return "C:/software/smks_studio"
             else:
                 return "C:/software/smks_studio_%s" % branch.replace(' ', '_')
@@ -666,8 +670,26 @@ class LauncherDialog(QtWidgets.QMainWindow):
         else:
             self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
 
-    def update_branches(self):
+    def _fetch_tags(self):
         import update_smks
+
+        if self._tags:
+            return self._tags
+
+        if not self._tags_process:
+            repo_path = self.get_repo_path()
+            if repo_path and os.path.isdir(self.get_repo_path()):
+                subprocess.call([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
+                self._tags_process = subprocess.Popen([update_smks.get_git(), 'tag'], stdout=subprocess.PIPE,
+                                                        stderr=subprocess.PIPE, cwd=self.get_repo_path())
+                ProcessWatcher(self._tags_process, self, end_callback=self._fetch_tags).start()
+        else:
+            if self._tags_process.poll() is not None:
+                out, err = self._tags_process.communicate()
+                self._tags = out.decode().split('\n')
+        return self._tags
+
+    def update_branches(self):
         if self._lock_branches:
             return
         self._lock_branches = True
@@ -685,22 +707,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             else:
                 self._branch_choice.addItem(choice)
 
-        repo_path = self.get_repo_path()
-        if repo_path and os.path.isdir(self.get_repo_path()):
-            subprocess.call([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
-            result = subprocess.check_output([update_smks.get_git(), 'tag'],
-                                             stderr=subprocess.STDOUT, cwd=self.get_repo_path())
-        else:
-            result = b''
-
-        result = result.decode('utf-8')
-        for choice in result.split('\n'):
-            if self._branch_choice.findText(choice) >= 0:
+        tags = self._fetch_tags()
+        for tag in tags:
+            if self._branch_choice.findText(tag) >= 0:
                 continue
-            if choice in icons:
-                self._branch_choice.addItem(QtGui.QIcon(icons[choice]), choice)
+            if tag in icons:
+                self._branch_choice.addItem(QtGui.QIcon(icons[tag]), tag)
             else:
-                self._branch_choice.addItem(choice)
+                self._branch_choice.addItem(tag)
         self._lock_branches = False
 
     def apply_style(self, widget=None):
@@ -957,6 +971,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     def showEvent(self, event):
         super(LauncherDialog, self).showEvent(event)
+        QtCore.QTimer.singleShot(50, self.update_data)
         self.background_image = self.background_image.copy(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
         self._smks_update_button.setIconSize(QtCore.QSize(self._smks_update_button.height() * 0.5, self._smks_update_button.height() * 0.5))
         new_pos = self.pos()

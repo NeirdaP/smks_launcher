@@ -421,6 +421,9 @@ class SmksNewsFeed(QtWidgets.QWidget):
 
     def showEvent(self, event):
         super(SmksNewsFeed, self).showEvent(event)
+        QtCore.QTimer.singleShot(100, self._load_news)
+
+    def _load_news(self):
         self.update_news()
         self.adjust_media_size()
         self.start()
