@@ -687,6 +687,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             if self._tags_process.poll() is not None:
                 out, err = self._tags_process.communicate()
                 self._tags = out.decode().split('\n')
+                self.showMessage("")
         return self._tags
 
     def update_branches(self):
