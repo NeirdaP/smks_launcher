@@ -135,6 +135,7 @@ def get_today_horoscope():
                 content = content.replace('color:#000000', '')
                 content = content.replace('<</span>', '</span>')
                 content = content.replace(' & ', html.escape(' & '))
+                content = content.replace('Horoscope', 'Clairoscope')
                 button_html = self._buttons_html+"\n\t<div class=\"menu_horo\">"
                 content = button_html.join(content.split('<div class="menu_horo">', 1))
 
