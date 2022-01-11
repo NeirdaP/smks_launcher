@@ -115,7 +115,8 @@ class ProcessWatcher(QtCore.QObject):
             if not stream:
                 continue
             line = stream.readline()
-            if line:
+            i = 0
+            while line and i < 4:
                 line = line[:-1]
                 try:
                     line = line.decode("utf-8")
@@ -123,8 +124,8 @@ class ProcessWatcher(QtCore.QObject):
                     continue
                 else:
                     lines.append(line)
-            else:
-                break
+                line = stream.readline()
+                i += 1
 
         if self._window:
             line = '\n'.join(lines)
@@ -234,6 +235,7 @@ class Thread(QtCore.QThread):
 
     def is_alive(self):
         return self.isRunning() and not self._ended
+
 
 class RequirementsDialog(QtWidgets.QDialog):
 
@@ -901,6 +903,22 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self.run_smks_studio()
 
+    @classmethod
+    def smks_configuration_from_preset(cls, preset_name, session_name="Supamonks"):
+        host = "192.168.1.215"
+        port = "6379"
+        cluster = "SMKS"
+        session = session_name
+        password = None
+        database = '0'
+        debug = False
+
+        if preset_name == 'BETA':
+            debug = True
+            session = "TEST_BETA"
+
+        return session, host, port, cluster, database, password, debug
+
     def run_smks_studio(self, *args):  # *args for callback
         import os
         import functools
@@ -928,7 +946,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
         smks_studio_env["PYTHONDIR"] = py3_path.replace('/', '\\')
         smks_studio_env["PYTHON2DIR"] = py2_path.replace('/', '\\')
         smks_studio_env["PYTHON3DIR"] = py3_path.replace('/', '\\')
-        smks_studio_env["CONFIG"] = self.config_choice.currentText()
+
+        config = self.config_choice.currentText()
+        session_parameters = self.smks_configuration_from_preset(config, self._branch_choice.currentText())
+        smks_studio_env["SMKS_STUDIO_CMD"] = "import smks_studio.gui.app as smks_gui;" \
+                                 "smks_gui.run_session(*{})".format(repr(session_parameters))
 
         subprocess.Popen(['cmd', '/C', 'setx', 'PYTHONDIR', py3_path.replace('/', '\\')], shell=True)
         subprocess.Popen(['cmd', '/C', 'setx', 'PYTHON2DIR', py2_path.replace('/', '\\')], shell=True)
@@ -941,8 +963,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self._hide_loading(self._python_update_button)
         QtCore.QTimer.singleShot(4000, self._handle_smks_runned)
+
         self._smks_process = subprocess.Popen([os.path.join(os.path.dirname(__file__), "Run_smks_studio.bat")],
-                         env=smks_studio_env, shell=True, cwd=user_path)
+                                              env=smks_studio_env, shell=True, cwd=user_path)
 
     @classmethod
     def open_supa_network(cls):
