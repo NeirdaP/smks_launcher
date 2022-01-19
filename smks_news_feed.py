@@ -462,16 +462,17 @@ class SmksNewsFeed(QtWidgets.QWidget):
 
         self._media_path = local_media_path
 
-        if ext in ('.png', '.jpg', '.jpeg'):
-            pixmap = QtGui.QPixmap(self._media_path)
-            self._background_lbl.setFixedSize(pixmap.size())
-            self._background_lbl.setPixmap(pixmap)
-            self._media_pixmap.setPixmap(pixmap)
-        else:
-            movie = QtGui.QMovie(self._media_path)
-            self._background_lbl.setFixedSize(movie.currentPixmap().size())
-            self._background_lbl.setMovie(movie)
-            movie.start()
+        if os.path.isdir(os.path.dirname(self._media_path)):
+            if ext in ('.png', '.jpg', '.jpeg'):
+                pixmap = QtGui.QPixmap(self._media_path)
+                self._background_lbl.setFixedSize(pixmap.size())
+                self._background_lbl.setPixmap(pixmap)
+                self._media_pixmap.setPixmap(pixmap)
+            else:
+                movie = QtGui.QMovie(self._media_path)
+                self._background_lbl.setFixedSize(movie.currentPixmap().size())
+                self._background_lbl.setMovie(movie)
+                movie.start()
         self.adjust_media_size()
 
     def end_transition(self):
@@ -537,7 +538,7 @@ class SmksNewsFeed(QtWidgets.QWidget):
             self._view.setCursor(QtCore.Qt.ArrowCursor)
 
         media_path = news.get("media_path", '')
-        if media_path:
+        if media_path and os.path.isdir(os.path.dirname(media_path)):
             self._transition_timer.setDirection(QtCore.QTimeLine.Backward)
             self._transition_timer.setCurrentTime(self.TRANSITION_DURATION)
             self._transition_timer.start()

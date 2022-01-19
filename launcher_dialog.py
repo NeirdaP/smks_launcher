@@ -3,6 +3,12 @@ import os
 import file
 import updates
 import subprocess
+
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty  # python 2.x
+
 from qtpy import QtWidgets, QtCore, QtGui
 
 
@@ -10,77 +16,6 @@ from qt_utils import PathEditor
 from smks_news_feed import SmksNewsFeed
 
 _LOCK = False
-
-
-def watch_process(process, window=None, timeout=-1, end_callback=None):
-    global _LOCK
-    import time
-    import random
-
-    if not process or process.returncode is not None:
-        return
-    start = time.time()
-
-    try:
-        while process and process.poll() is None:
-            if (time.time() - start) > timeout > 0:
-                raise RuntimeError('Timeout reached: process aborted')
-            else:
-                time.sleep(0.1)
-            while _LOCK:
-                time.sleep(0.1)
-            _LOCK = True
-            for stream in [process.stderr, process.stdout]:
-                if not stream:
-                    continue
-                line = stream.readline()
-                if line:
-                    line = line[:-1]
-                    try:
-                        line = line.decode("utf-8")
-                    except ValueError:
-                        continue
-                    if window:
-                        low_line = line.lower()
-                        if 'error' in low_line or ' end' in low_line or random.randint(0, 3) == 0:
-                            window.showMessage(line)
-                        else:
-                            print(line)
-            _LOCK = False
-    except OSError:
-        print("Cannot fetch outputs of process {}".format(process))
-        while process and process.poll() is None:
-            if (time.time() - start) > timeout > 0:
-                raise RuntimeError('Timeout reached: process aborted')
-            else:
-                time.sleep(0.1)
-    except (IOError, RuntimeError):
-        import traceback
-        traceback.print_exc()
-        process.poll()
-        if process and process.returncode is None:
-            try:
-                process.terminate()
-            except OSError:
-                pass
-        print("Ended with status {}".format(process.returncode))
-        return process.returncode
-    else:
-        out, err = process.communicate()
-        if out:
-            out = out.decode()
-            if window and out:
-                window.showMessage(out)
-        print(out, err)
-    print("Ended with status {}".format(process.returncode))
-
-    if end_callback is not None:
-        try:
-            end_callback(process.returncode)
-        except TypeError as e:
-            print(e)
-            end_callback()
-    return process.returncode
 
 
 class ProcessWatcher(QtCore.QObject):
@@ -92,6 +27,9 @@ class ProcessWatcher(QtCore.QObject):
         self._timeout = timeout
         self._end_callback = end_callback
         self._ended = False
+
+        self._reader = None
+        self._read_queue = Queue()
 
         self._timer = QtCore.QTimer(self)
         self._timer.setSingleShot(True)
@@ -111,29 +49,21 @@ class ProcessWatcher(QtCore.QObject):
 
         lines = []
 
-        for stream in [self._process.stderr, self._process.stdout]:
-            if not stream:
-                continue
-            line = stream.readline()
-            i = 0
-            while line and i < 4:
-                line = line[:-1]
-                try:
-                    line = line.decode("utf-8")
-                except ValueError:
-                    continue
-                else:
-                    lines.append(line)
-                line = stream.readline()
-                i += 1
+        while True:
+            try:
+                line = self._read_queue.get_nowait()  # or q.get(timeout=.1)
+            except Empty:
+                break
+            else:
+                lines.append(line)
 
         if self._window:
-            line = '\n'.join(lines)
-            low_line = line.lower()
-            if 'error' in low_line or ' end' in low_line or random.randint(0, 3) == 0:
-                self._window.showMessage(line)
-            else:
-                print(line)
+            for line in lines:
+                low_line = line.lower()
+                if 'error' in low_line or ' end' in low_line or random.randint(0, 2) == 0:
+                    self._window.showMessage(line)
+                else:
+                    print(line)
         _LOCK = False
 
     def _end(self):
@@ -165,6 +95,7 @@ class ProcessWatcher(QtCore.QObject):
         return self._process.returncode or -1
 
     def _handle_process_normal_end(self):
+        self.handle_process_output()
         out, err = self._process.communicate()
         if out:
             out = out.decode()
@@ -206,9 +137,28 @@ class ProcessWatcher(QtCore.QObject):
 
         return None
 
+    def _read(self):
+        while self._process.poll() is None:
+            for stream in [self._process.stderr, self._process.stdout]:
+                if not stream:
+                    continue
+
+                line = stream.readline()
+                while line:
+                    try:
+                        line = line[:-1].decode("utf-8")
+                    except ValueError:
+                        continue
+                    self._read_queue.put(line)
+                    line = stream.readline()
+
     def run(self):
         import time
         self._start_time = time.time()
+
+        self._reader = Thread(target=self._read)
+        self._reader.start()
+
         self._timer.timeout.connect(self.watch_process)
         self._timer.start(30)
 
