@@ -538,10 +538,9 @@ class SmksNewsFeed(QtWidgets.QWidget):
             self._view.setCursor(QtCore.Qt.ArrowCursor)
 
         media_path = news.get("media_path", '')
-        if media_path and os.path.isdir(os.path.dirname(media_path)):
-            self._transition_timer.setDirection(QtCore.QTimeLine.Backward)
-            self._transition_timer.setCurrentTime(self.TRANSITION_DURATION)
-            self._transition_timer.start()
+        self._transition_timer.setDirection(QtCore.QTimeLine.Backward)
+        self._transition_timer.setCurrentTime(self.TRANSITION_DURATION)
+        self._transition_timer.start()
         self._information_item.show()
 
         message = news.get("message", media_path)
