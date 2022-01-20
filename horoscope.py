@@ -1,5 +1,7 @@
 from __future__ import print_function
 
+import urllib.error
+
 SIGNS = ["Belier", "Taureau", "Gemeaux", "Cancer",
          "Lion", "Vierge", "Balance", "Scorpion", "Sagittaire",
          "Capricorne", "Verseau", "Poissons"]
@@ -54,8 +56,14 @@ def get_today_horoscope():
             super(HoroscopeView, self).__init__(parent)
 
             self._pages = dict()
+            self._pages[''] = ''
 
-            self._buttons_html = '<ul class="signs">%s</ul>' % '\n'.join(
+            close_button = '<button type="button" class="close-button" title="{sign}" onclick="onClick(\'\')">' \
+                           '<span style="background: url(./images/horoscope/close.png);' \
+                           '    background-repeat: no-repeat; background-size: cover;">' \
+                           '</span></button>'
+
+            self._buttons_html = close_button + '<ul class="signs">%s</ul>' % '\n'.join(
                 '<li class="sign-item" title="{sign}">'
                 '<script>'
                 'function onClick(sign){{window.qt_view.reload_page(sign)}};'
@@ -69,7 +77,7 @@ def get_today_horoscope():
                 for sign in SIGNS
             )
 
-            self.setMinimumSize(200, 200)
+            self.setMinimumSize(100, 100)
             self._callback = HoroscopeCallback(self)
 
         def showEvent(self, event):
@@ -81,14 +89,20 @@ def get_today_horoscope():
 
             loaded_page = self._pages.get(sign)
             if loaded_page is None:
-                self._pages[sign] = loaded_page = ''
+                if sign in SIGNS:
+                    self._pages[sign] = loaded_page = ''
 
-                def load_page():
-                    link = HOROSCOPE_LINK.format(sign.lower())
-                    self._pages[sign] = request.urlopen(link).read().decode('utf-8')
+                    def load_page():
+                        link = HOROSCOPE_LINK.format(sign.lower())
+                        try:
+                            self._pages[sign] = request.urlopen(link).read().decode('utf-8')
+                        except urllib.error.HTTPError:
+                            self._pages[sign] = "<h2>Not Available</h2>"
 
-                thread = threading.Thread(target=load_page)
-                thread.start()
+                    thread = threading.Thread(target=load_page)
+                    thread.start()
+                else:
+                    self._pages[sign] = loaded_page = "<h2>Not Available</h2>"
 
             if not len(loaded_page):
                 QtCore.QTimer.singleShot(100, lambda _sign=sign, _load=load_it: self._fetch_page(sign, _load))
@@ -101,7 +115,7 @@ def get_today_horoscope():
             import html
             import datetime
 
-            if not sign:
+            if sign is None:
                 sign = self.window().settings.value("horoscope_sign", SIGNS[random.randint(0, len(SIGNS) - 1)])
             else:
                 self.window().settings.setValue("horoscope_sign", sign)
@@ -121,15 +135,20 @@ def get_today_horoscope():
             content = self._pages[sign]
 
             if 'horo_module' not in content:
-                content = "<h2>No content available</h2>" + self._buttons_html
+                self.setMinimumSize(100, 100)
+                content = self._buttons_html + "<body>"
+                label = content or "Not Available"
+                label += "</body>"
             else:
+                self.setMinimumSize(250, 250)
                 seed = (datetime.datetime.now().day + SIGNS.index(sign)) % 100
                 random.seed(seed)
-                friend_png = '%d.png' % (int(random.random()*2)+1)
+                friend_png = '%d.png' % (int(random.random() * 2) + 1)
 
                 content = content.split('"horo_module" >', 1)[-1]
 
-                content = "<div class=\"horo_module\">{}</div>".format(content.split('<form', 1)[0])
+                content = "<div class=\"horo_module_header\"></div>" \
+                          "<div class=\"horo_module\">{}</div>".format(content.split('<form', 1)[0])
                 content = content.replace('//cdn1.tlmq.fr/1/', './images/')
                 content = content.replace('0.png', friend_png, 1)
                 content = content.replace('color:#000000', '')
@@ -139,32 +158,32 @@ def get_today_horoscope():
                 button_html = self._buttons_html+"\n\t<div class=\"menu_horo\">"
                 content = button_html.join(content.split('<div class="menu_horo">', 1))
 
-            for i in range(10):
-                try:
-                    tree = ET.fromstring(content)
-                except ET.ParseError as e:
-                    if i == 7:
-                        import traceback
-                        traceback.print_exc()
-                        content = content.replace("<div class=\"menu_horo\">", "<div class=\"menu_horo\" hidden>")
-                        label = content
-                        break
+                for i in range(10):
+                    try:
+                        tree = ET.fromstring(content)
+                    except ET.ParseError as e:
+                        if i == 7:
+                            import traceback
+                            traceback.print_exc()
+                            content = content.replace("<div class=\"menu_horo\">", "<div class=\"menu_horo\" hidden>")
+                            label = content
+                            break
+                        else:
+                            content = content.split('\n')
+                            content[e.position[0] - 1] = content[e.position[0] - 1].replace('&', '')
+                            content = '\n'.join(content)
                     else:
-                        content = content.split('\n')
-                        content[e.position[0] - 1] = content[e.position[0] - 1].replace('&', '')
-                        content = '\n'.join(content)
-                else:
-                    for div in tree.iterfind("div"):
-                        if "menu" in div.attrib["class"]:
-                            tree.remove(div)
+                        for div in tree.iterfind("div"):
+                            if "menu" in div.attrib["class"]:
+                                tree.remove(div)
 
-                    for p in tree.iter("p"):
-                        if "class" in p.attrib and "nav" in p.attrib["class"]:
-                            p.clear()
-                            del p
+                        for p in tree.iter("p"):
+                            if "class" in p.attrib and "nav" in p.attrib["class"]:
+                                p.clear()
+                                del p
 
-                    label = ET.tostring(tree, method='html', encoding='utf-8').decode()
-                    break
+                        label = ET.tostring(tree, method='html', encoding='utf-8').decode()
+                        break
 
             channel = QWebChannel(self.page())
             channel.registerObject("qt_view", self._callback)
@@ -184,6 +203,7 @@ def get_today_horoscope():
                            '</head>'
                            '<html><body id="body">{}</body></html>'.format(qwebchannel_script, label),
                            QUrl("file:///./horoscope.html"))
+            self.adjustSize()
+            self.parentWidget().adjustSize()
 
-            self.setMinimumSize(250, 250)
     return HoroscopeView()
