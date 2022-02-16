@@ -774,7 +774,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return 0
 
         with open(update_file) as fp:
-            return int(fp.read())
+            try:
+                return int(fp.read())
+            except ValueError:
+                return 0
 
     def update_last_packages_update(self):
         import update_smks
