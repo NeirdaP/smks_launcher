@@ -115,7 +115,8 @@ if __name__ == '__main__':
         for folder in os.listdir(third_party_folder):
             if os.path.isdir(os.path.join(third_party_folder, folder)):
                 shutil.rmtree(os.path.join(third_party_folder, folder))
-        subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
+        subprocess.check_call([git, "submodule", "init"], cwd=repo_path)
+        subprocess.check_call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet",
                                 "smks_studio_home/python/third_party/smks_core"],
