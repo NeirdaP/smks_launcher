@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 
 import utils
@@ -101,14 +102,24 @@ if __name__ == '__main__':
     else:
         sys.stdout.flush()
 
+    success = True
     for i in range(2):
         try:
             print("Update Submodules...")
             subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
         except:
             print("Error on update")
+            success = False
         else:
             break
+
+    if not success:
+        third_party_folder = os.path.join(repo_path, "smks_studio_home/python/third_party")
+        for folder in os.listdir(third_party_folder):
+            if os.path.isdir(os.path.join(third_party_folder, folder)):
+                shutil.rmtree(os.path.join(third_party_folder, folder))
+        subprocess.check_call([git, "submodule", "init"], cwd=repo_path)
+        subprocess.check_call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet",
                                 "smks_studio_home/python/third_party/smks_core"],

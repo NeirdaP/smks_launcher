@@ -817,7 +817,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return 0
 
         with open(update_file) as fp:
-            return int(fp.read())
+            try:
+                return int(fp.read())
+            except ValueError:
+                return 0
 
     def update_last_packages_update(self):
         import update_smks
@@ -886,7 +889,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
         log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
         out, err = log_process.communicate()
-        requirements_last_update = int(out)
+        try:
+            requirements_last_update = int(out)
+        except ValueError:
+            requirements_last_update = 0
         if requirements_last_update != package_last_update:
             if self.thread() == QtCore.QThread.currentThread():
                 QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Need Update",
