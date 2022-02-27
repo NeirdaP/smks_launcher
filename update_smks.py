@@ -22,6 +22,9 @@ def get_git():
             if os.path.isdir(r"C:\software\Git\bin"):
                 os.environ["PATH"] = os.environ["PATH"] + r";C:\software\Git\bin"
                 GIT_EXE = r"C:\software\Git\bin\git"
+            elif os.path.isdir(r"C:\Program Files\Git\bin"):
+                os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Git\bin"
+                GIT_EXE = r"C:\Program Files\Git\bin\git"
             else:
                 os.environ["PATH"] = os.environ["PATH"] + r";I:\bin\Git\PortableGit\bin"
                 GIT_EXE = r"I:\bin\Git\PortableGit\bin\git"

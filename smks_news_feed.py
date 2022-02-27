@@ -416,7 +416,7 @@ class SmksNewsFeed(QtWidgets.QWidget):
             self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
 
         self.setMaximumSize(9999, 400)
-        self.setMinimumSize(0, 200)
+        self.setMinimumSize(0, 150)
         # self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 
     def showEvent(self, event):

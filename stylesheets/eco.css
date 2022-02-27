@@ -1,0 +1,240 @@
+body {background: #222222; font-family: Arial; color: #CCCCCC }
+h1 {
+    margin: 10;
+    color: #48b148;
+    padding: 1;
+    display: inline;
+}
+h3 {
+    font-size: 0.75em;
+    color: #a3c7a3;
+    padding: 1;
+    display: inline;
+    float: right;
+}
+
+ul {
+    list-style: square inside none;
+}
+
+ul, ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+li {
+    margin: 0;
+    margin-bottom: 10px;
+}
+
+article {
+    display: inline-block;
+}
+
+article h2 {
+    margin: 6px 0px;
+    font-size: 1.2em;
+}
+
+article > a, article > figure {
+    display: inline-block;
+    float: left;
+}
+
+article a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.a-block:after {
+    position: absolute;
+    left: 0;
+    margin-top: 25px;
+    width: 100%;
+    height: 70%;
+    content: '';
+    color: transparent;
+    background-color: transparent;
+}
+
+article img {
+    width: 300px;
+    display: inline;
+    float: left;
+    margin-top: -5%;
+    position: relative;
+    z-index: -1;
+}
+
+article div.cover_text {
+    display: inline;
+    width: 48%;
+    float: left;
+    margin: 10px;
+    text-align: justify;
+}
+
+article > div.cover_body, article > div.teaser_body {
+    background: #285f48;
+    padding: 10px;
+    z-index: 9;
+    border-bottom: 3px solid;
+}
+
+article > div > div {
+    font-size: 0.8em;
+    padding-left: 5px;
+}
+
+article figure {
+    margin: 0;
+    display: inline-block;
+}
+
+article div.teaser_heading
+{
+    display: none;
+}
+
+ul.signs {
+	text-align: center;
+    width: 300px;
+    float: right;
+    text-align: right;
+    margin-top: 10px;
+}
+
+.close-button {
+    display: inline-block;
+    vertical-align: top;
+
+	border: solid 1px #c0ba97;
+    background-color: rgba(157,24,23,0.5);
+    font-weight: normal;
+    height: 20px;
+    width: 20px;
+    border-radius: 17px;
+    margin-top: -7px;
+    margin-right: -5px;
+    float: right;
+	padding: 1px;
+}
+
+.sign-item {
+    display: inline-block;
+    vertical-align: top;
+	margin: 2px 3px;
+}
+
+.sign-item button {
+	border: solid 1px #c0ba97;
+    background-color: rgba(57,68,128,0.5);
+    font-weight: normal;
+    height: 35px;
+    width: 35px;
+    border-radius: 17px;
+	padding: 3px;
+}
+
+.close-button span, .sign-item button span {
+    vertical-align:middle;
+    margin:auto;
+    display:inline-block;
+    width:75%;
+    height:75%;
+    background-repeat: no-repeat;
+    background-size: contains;
+}
+
+.horo_module_header { border: solid 1px #c0ba97; margin-right: 30px;}
+.horo_module { color: #e8dec9; }
+
+.horo_module .intro_horo
+{
+	display: inline-block;
+    float: left;
+    width: 300px;
+	padding-top:10px;
+}
+.horo_module .intro_horo .titre_horo 	{ font-size:18px;color:#666666;font-weight: normal;}
+.horo_module .intro_horo .titre_date 	{ font-size:25px;color:#a38749;font-weight: normal;}
+
+.horo_module .content_horo .humeur_content .nav_right { color:#C4003a; }
+.horo_module .content_horo .amour_content .nav_left { color:#c85dbf; }
+.horo_module .content_horo .amour_content .nav_right { color:#6c9cd1; }
+.horo_module .content_horo .travail_content .nav_left { color:#e2001a; }
+.horo_module .content_horo .travail_content .nav_right { color:#6b0181; }
+.horo_module .content_horo .affinites_content .nav_left { color:#6c9cd1; }
+.horo_module .content_horo .affinites_content .nav_right { color:#FEA26F; }
+.horo_module .content_horo .energie_content .nav_left { color:#6b0181; }
+.horo_module .content_horo .energie_content .nav_right { color:#87124b; }
+.horo_module .content_horo .beaute_content .nav_left { color:#FEA26F; }
+.horo_module .content_horo .beaute_content .nav_right { color:#70b112; }
+.horo_module .content_horo .chance_content .nav_left { color:#87124b; }
+.horo_module .content_horo .chance_content .nav_right { color:#ff3188; }
+.horo_module .content_horo .deco_content .nav_left { color:#70b112; }
+.horo_module .content_horo .deco_content .nav_right { color:#4267e9; }
+.horo_module .content_horo .cejourla_content .nav_left { color:#ff3188; }
+.horo_module .content_horo .cejourla_content .nav_right { color:#FFA765; }
+.horo_module .content_horo .atable_content .nav_left { color:#4267e9; }
+
+.horo_module .content_horo { position:relative; float:left; height:auto;  margin-left:6px; padding-top:5px; padding-bottom:5px; text-align:left; overflow:hidden; }
+.horo_module .content_horo .humeur_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .amour_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .travail_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .affinites_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .energie_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .beaute_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .chance_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .deco_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .cejourla_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.horo_module .content_horo .atable_content { position:relative; float:left; height:auto;  overflow:hidden; padding-left:20px; }
+.scroll-pane { height:auto; }
+.horo_module .content_horo .underline{ }
+.horo_module .content_horo .no_underline{ text-decoration:none;}
+.horo_module .content_horo h2 { position:relative; float:left; clear:left;  margin-top:15px; /*margin-bottom:5px;*/ width:100%; font-size:14px; line-height:26px; }
+.horo_module .content_horo h2 span { clear: none; margin-top:0px; margin-bottom:0px;}
+.horo_module .content_horo h2 font {position:relative; float:left; }
+.horo_module .content_horo span { position:relative; float:left; clear:left; /*margin-top:5px; margin-bottom:5px; */ width:95%;}
+.horo_module .content_horo .humeur_content h2{color:#c85dbf; font-weight:bold;}
+.horo_module .content_horo .humeur_content .indice_jour{  }
+.horo_module .content_horo .humeur_content .lame_name {padding-bottom:2px; display:inline; }
+.horo_module .content_horo .humeur_content .etoile_name {font-weight:bold; padding-bottom:2px; display:inline; color:black; margin-left:10px; width:auto; }
+.horo_module .content_horo .humeur_content .etoile_details {padding-bottom:2px; }
+.horo_module .content_horo .humeur_content .grenouille_image {float:left; position:relative; background:url(http://cdn1.horoscope.fr/1/horoscope/jour/grenouille/grenouille-contente.png) no-repeat; width:116px; height:190px; margin-top:12px;}
+.horo_module .content_horo .humeur_content .grenouille_list {float:left; position:relative; list-style:none; padding-left:0px; width:100%;}
+.horo_module .content_horo .humeur_content .grenouille_list li { height:34px; margin:auto; position:relative; width:33%; float:left; }
+.horo_module .content_horo .humeur_content .grenouille_list li img { position:relative; float:right; height:34px; margin-right:55px; }
+.horo_module .content_horo .humeur_content .grenouille_list li .grenouille_titre { position:relative; float:left; font-weight:bold; font-size:13px; line-height:13px; display:block; height:34px; line-height:30px; width:auto; }
+.horo_module .content_horo .content_horo .amour_content .slider_image {background:url(http://cdn1.horoscope.fr/1/horoscope/jour/slider/amour_image.jpg) no-repeat; border:1px solid #DE1B31;}
+.horo_module .content_horo .amour_content h2{color:#C4003a; font-weight:bold; }
+.horo_module .content_horo .amour_content .cocktail_name {color:black; font-weight:bold; font-size: 12px; display:inline;}
+.horo_module .content_horo .amour_content .cocktail_content {padding-bottom:2px; font-style:italic; font-weight:bold;}
+.horo_module .content_horo .amour_content .cocktail_content .cocktail_detail {padding-bottom:0px; margin-left:10px; font-style:normal; font-weight:normal;}
+.horo_module .content_horo .amour_content .cocktail_content .cocktail_url {padding-bottom:0px; margin-left:10px; font-weight:normal; font-size:9px; margin-top:5px;}
+.horo_module .content_horo .travail_content h2{color:#6c9cd1; font-weight:bold; }
+.horo_module .content_horo .affinites_content h2{color:#6b0181; font-weight:bold; }
+.horo_module .content_horo .energie_content h2{color:#FEA26F; font-weight:bold; }
+.horo_module .content_horo .energie_content .recette_name {color:black; font-weight:bold; font-size: 12px; display:inline;}
+.horo_module .content_horo .energie_content .recette_content {padding-bottom:2px; font-style:italic; font-weight:bold;}
+.horo_module .content_horo .energie_content .recette_content.center { text-align:center; }
+.horo_module .content_horo .energie_content .recette_content .recette_detail {padding-bottom:0px; margin-left:10px; font-style:normal; font-weight:normal;}
+.horo_module .content_horo .energie_content .recette_content .recette_url {padding-bottom:0px; margin-left:10px; font-weight:normal; font-size:11px; margin-top:5px;}
+.horo_module .content_horo .energie_content .recette_content .recette_url a {}
+.horo_module .content_horo .beaute_content h2{color:#87124b; font-weight:bold; }
+.horo_module .content_horo .beaute_content .slider_content span {padding-bottom:5px; }
+.horo_module .content_horo .chance_content h2{color:#70b112; font-weight:bold; }
+.horo_module .content_horo .chance_content .chiffre_chance_titre{padding-bottom:15px; }
+.horo_module .content_horo .chance_content .chiffre_chance {font-size:25px; font-weight:bold; position:absolute; left:190px; top:4px; }
+.horo_module .content_horo .deco_content h2{color:#ff3188; font-weight:bold; }
+.horo_module .content_horo .cejourla_content h2{color:#4267e9; font-weight:bold; }
+.horo_module .content_horo .cejourla_content .fete_titre { font-weight:bold; display: inline; }
+.horo_module .content_horo .cejourla_content .fete_content {display: inline; }
+.horo_module .content_horo .cejourla_content .fetes_prenom {padding-bottom:2px;}
+.horo_module .content_horo .atable_content h2{color:#FFA765; font-weight:bold; }
+.horo_module .content_horo .atable_content .recette_name {color:black; font-weight:bold; font-size: 12px; display:inline;}
+.horo_module .content_horo .atable_content .recette_content {padding-bottom:2px; font-style:italic; font-weight:bold;}
+.horo_module .content_horo .atable_content .recette_content .recette_detail {padding-bottom:0px; margin-left:10px; font-style:normal; font-weight:normal;}
+.horo_module .content_horo .atable_content .recette_content .recette_url {padding-bottom:0px; margin-left:10px; font-weight:normal; font-size:9px; margin-top:5px;}
+.horo_module .content_horo .atable_content .recette_content .recette_url a {}

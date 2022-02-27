@@ -207,6 +207,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     def __init__(self):
         from horoscope import get_today_horoscope
+        from eco_tips import get_today_eco
+        from hashtagisthenewdiese import get_today_hitnd
+
         super(LauncherDialog, self).__init__()
         self.main_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.main_widget)
@@ -237,6 +240,40 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._status_type = ''
         self.settings = QtCore.QSettings("SMKS_Launcher", "Supamonks")
         self._lock_branches = False
+
+        self._news_choice_buttons_group = QtWidgets.QButtonGroup()
+        self._news_choice_buttons = QtWidgets.QWidget()
+        buttons_layout = QtWidgets.QHBoxLayout()
+        self._news_choice_buttons.setLayout(buttons_layout)
+        self._clairoscope_button = QtWidgets.QRadioButton("images/horoscope.png")
+        self._ecology_button = QtWidgets.QRadioButton("images/eco.png")
+        self._claire_button = QtWidgets.QRadioButton("images/claire.png")
+
+        for i, btn in enumerate(( self._ecology_button, self._clairoscope_button, self._claire_button)):
+            self._news_choice_buttons_group.addButton(btn, i)
+            buttons_layout.addWidget(btn)
+            btn.setMaximumWidth(100)
+            btn.setStyleSheet("""
+                QRadioButton::indicator {{
+                    width: 25px;
+                    height: 25px;
+                    image: url({});
+                    border-radius: 15px;
+                    padding: 2px;
+                }}
+                """.format(btn.text())
+            )
+            btn.setText("")
+
+
+        self._news_choice_buttons.setContentsMargins(0,0,0,0)
+        buttons_layout.setAlignment(QtCore.Qt.AlignCenter)
+
+        self._news_widget = QtWidgets.QStackedWidget()
+        self._news_widget.addWidget(get_today_eco())
+        self._news_widget.addWidget(get_today_horoscope())
+        self._news_widget.addWidget(get_today_hitnd())
+        self._news_widget.setMinimumHeight(250)
 
         python_group = QtWidgets.QGroupBox("Python")
         self._python_group_toggle_button = QtWidgets.QPushButton()
@@ -283,9 +320,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_studio_button.clicked.connect(self.check_n_run_smks_studio)
         self._run_smks_letter_button.clicked.connect(self.open_supa_newsletter)
         self._run_smks_network_button.clicked.connect(self.open_supa_network)
+        self._news_choice_buttons_group.idToggled.connect(lambda id, checked: self._news_widget.setCurrentIndex(id))
 
         main_layout = QtWidgets.QVBoxLayout(self.main_widget)
-        actions_layout = QtWidgets.QHBoxLayout()
         python_layout = QtWidgets.QVBoxLayout(python_group)
         python_path_layout = QtWidgets.QVBoxLayout()
         requirements_layout = QtWidgets.QHBoxLayout()
@@ -296,9 +333,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
         # main_layout.addLayout(actions_layout, 1)
         main_layout.addWidget(python_group, 1)
         main_layout.addStretch()
-        main_layout.addWidget(get_today_horoscope(),5)
-        main_layout.addWidget(SmksNewsFeed(),3)
-        main_layout.addWidget(update_group,1)
+        main_layout.addWidget(self._news_choice_buttons, 1)
+        main_layout.addWidget(self._news_widget, 5)
+        main_layout.addWidget(SmksNewsFeed(), 2)
+        main_layout.addWidget(update_group, 1)
         main_layout.addLayout(runs_layout, 2)
 
         python_layout.addWidget(self._python_path_preset_choice)
@@ -352,7 +390,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_letter_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
         self._run_smks_network_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
         self._smks_update_button.setMinimumWidth(desktop.height() * 0.09)
-        self.resize(int(desktop.width()*0.36), int(desktop.height()*0.2))
         self._python_group_toggle_button.setMaximumHeight(20)
 
         # ### STYLE ###
@@ -381,6 +418,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._requirements_path_edit.setHidden(True)
         self.toggle_python_group()
 
+        self._ecology_button.setChecked(True)
+
         if "install_python" in QtWidgets.QApplication.instance().arguments():
             flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
             if not os.path.isfile("C:\\.smks_installed") and not os.path.isfile(flag_path):
@@ -390,6 +429,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(1000, self._update_python)
         if "update_smks" in QtWidgets.QApplication.instance().arguments():
             QtCore.QTimer.singleShot(1000, self.update_smks_studio)
+
+        self.setMinimumSize(int(desktop.width()*0.36), int(desktop.height()*0.7))
+        self.setMaximumSize(int(desktop.width()*0.5), int(desktop.height()*0.9))
+        self.resize(int(desktop.width()*0.4), int(desktop.height()*0.8))
 
     def _handle_branch_changed(self):
         self.update_branches()
@@ -949,7 +992,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self.background_image = self.background_image.copy(QtCore.QRect(QtCore.QPoint(0, 0), self.size()))
         self._smks_update_button.setIconSize(QtCore.QSize(self._smks_update_button.height() * 0.5, self._smks_update_button.height() * 0.5))
         new_pos = self.pos()
-        new_pos.setY(max(50, new_pos.y() - 200))
+        new_pos.setY(max(50, new_pos.y() - 300))
         self.move(new_pos)
 
     def closeEvent(self, event):

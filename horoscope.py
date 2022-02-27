@@ -22,6 +22,7 @@ def get_today_horoscope():
     from qtpy.QtCore import QSize, QUrl, QObject, QTimer
     from xml.etree import ElementTree as ET
     import random
+    import html
     import functools
 
     try:
@@ -152,11 +153,10 @@ def get_today_horoscope():
                 content = content.replace('//cdn1.tlmq.fr/1/', './images/')
                 content = content.replace('0.png', friend_png, 1)
                 content = content.replace('color:#000000', '')
-                content = content.replace('<</span>', '</span>')
-                content = content.replace(' & ', html.escape(' & '))
                 content = content.replace('Horoscope', 'Clairoscope')
                 button_html = self._buttons_html+"\n\t<div class=\"menu_horo\">"
                 content = button_html.join(content.split('<div class="menu_horo">', 1))
+                content = html.unescape("<div>{}</div>".format(content))
 
                 for i in range(10):
                     try:
@@ -173,12 +173,13 @@ def get_today_horoscope():
                             content[e.position[0] - 1] = content[e.position[0] - 1].replace('&', '')
                             content = '\n'.join(content)
                     else:
-                        for div in tree.iterfind("div"):
-                            if "menu" in div.attrib["class"]:
-                                tree.remove(div)
+                        for div in tree.iter("div"):
+                            if "class" in div.attrib and "menu_horo" in div.attrib["class"]:
+                                div.clear()
+                                del div
 
                         for p in tree.iter("p"):
-                            if "class" in p.attrib and "nav" in p.attrib["class"]:
+                            if "class" in p.attrib and ("nav" in p.attrib["class"] or "menu" in p.attrib["class"]):
                                 p.clear()
                                 del p
 

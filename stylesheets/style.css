@@ -41,6 +41,20 @@ QPushButton:hover, QPushButton:selected, QToolButton:hover {
     color: palette(highlighted);
 }
 
+QRadioButton::indicator:checked {
+    border: 2px solid palette(highlight);
+    margin: 0;
+}
+
+QRadioButton::indicator {
+    margin: 2px;
+}
+
+QRadioButton::indicator:hover {
+    border: 2px solid palette(shadow);
+    margin: 0;
+}
+
 QPushButton:!enabled, QPushButton:!enabled, QToolButton:!enabled {
     background-color: gray;
     border: 0;
