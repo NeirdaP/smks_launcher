@@ -8,10 +8,16 @@ BRANCHES = dict(
 
 def get_branches():
     import json
+    import logging
+    import os
 
     branches = BRANCHES.copy()
-    with open('./branches.json') as fp:
-        branches.update(json.load(fp))
+    if os.path.isfile("./branches.json"):
+        with open('./branches.json') as fp:
+            branches.update(json.load(fp))
+    else:
+        logging.getLogger("smks_launcher").warning("There is no branches.json")
+        branches['OFFICIAL'] = 'master'
 
     return branches
 
