@@ -320,7 +320,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_studio_button.clicked.connect(self.check_n_run_smks_studio)
         self._run_smks_letter_button.clicked.connect(self.open_supa_newsletter)
         self._run_smks_network_button.clicked.connect(self.open_supa_network)
-        self._news_choice_buttons_group.idToggled.connect(lambda id, checked: self._news_widget.setCurrentIndex(id))
+        self._news_choice_buttons_group.buttonToggled.connect(
+            lambda burront: self._news_widget.setCurrentIndex(self._news_choice_buttons_group.checkedId())
+        )
 
         main_layout = QtWidgets.QVBoxLayout(self.main_widget)
         python_layout = QtWidgets.QVBoxLayout(python_group)
