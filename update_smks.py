@@ -70,6 +70,12 @@ if __name__ == '__main__':
 
     args = parse_command_line_args(sys.argv)
     repo_path = args['repo_path']
+    original_credential = subprocess.check_output(
+        [git, "config", "--global", "credential.helper"]
+    ).strip().strip(b'\n')
+    subprocess.check_call(
+        [git, "config", "--global", "credential.helper", ""]
+    )
 
     if not os.path.isdir(args['python_path']):
         try:
@@ -90,19 +96,25 @@ if __name__ == '__main__':
     except OSError:
         pass
 
-    try:
-        print("Update...")
-        return_code = subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", branch],
-                                            cwd=repo_path)
-        subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", "--quiet", branch],
-                              cwd=repo_path)
-    except:
-        sys.stderr.flush()
+    success = False
+    for i in range(2):
+        try:
+            print("Update...")
+            return_code = subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", branch],
+                                                cwd=repo_path)
+            subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", "--quiet", branch],
+                                  cwd=repo_path)
+        except:
+            sys.stderr.flush()
+            shutil.rmtree(repo_path)
+            success = False
+        else:
+            sys.stdout.flush()
+            success = True
+    if not success:
         raise RuntimeError("Update failed!")
-    else:
-        sys.stdout.flush()
 
-    success = True
+    success = False
     for i in range(2):
         try:
             print("Update Submodules...")
@@ -111,7 +123,7 @@ if __name__ == '__main__':
             print("Error on update")
             success = False
         else:
-            break
+            success = True
 
     if not success:
         third_party_folder = os.path.join(repo_path, "smks_studio_home/python/third_party")
@@ -125,4 +137,7 @@ if __name__ == '__main__':
                                 "smks_studio_home/python/third_party/smks_core"],
                                cwd=repo_path)
     process.wait()
+    subprocess.check_call(
+        [git, "config", "--global", "credential.helper", original_credential]
+    )
     print("Update Ended !")
