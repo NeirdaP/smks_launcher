@@ -70,9 +70,12 @@ if __name__ == '__main__':
 
     args = parse_command_line_args(sys.argv)
     repo_path = args['repo_path']
-    original_credential = subprocess.check_output(
-        [git, "config", "--global", "credential.helper"]
-    ).strip().strip(b'\n')
+    try:
+        original_credential = subprocess.check_output(
+            [git, "config", "--global", "credential.helper"]
+        ).strip().strip(b'\n')
+    except subprocess.CalledProcessError:
+        original_credential = ""
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", ""]
     )
