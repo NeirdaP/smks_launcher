@@ -1,4 +1,5 @@
 import os
+import time
 
 import file
 import updates
@@ -195,6 +196,59 @@ class RequirementsDialog(QtWidgets.QDialog):
         # self.setLayout()
 
 
+class Popup(QtWidgets.QDialog):
+
+    def __init__(self, parent):
+        super(Popup, self).__init__(parent, QtCore.Qt.Popup)
+
+        self._display_duration = 5
+        self._show_start = 0
+
+        self._label = QtWidgets.QLabel(self)
+        self._label.setAlignment(QtCore.Qt.AlignCenter)
+
+        self._icon = QtWidgets.QLabel(self)
+        self._icon.setPixmap(self.style().standardIcon(QtWidgets.QStyle.SP_MessageBoxInformation).pixmap(50,50))
+
+        self._show_timer = QtCore.QTimer(self)
+        self._show_timer.setInterval(66)
+
+        self.setLayout(QtWidgets.QHBoxLayout())
+        self.layout().addWidget(self._icon, 20)
+        self.layout().addWidget(self._label, 80)
+        self.setMinimumSize(175, 75)
+
+        self._show_timer.timeout.connect(self._fade_away)
+        self.setStyleSheet("QDialog { border: 2px solid rgb(50,75,125); }")
+
+    def popup(self, title, message, display_duration_seconds=5.0):
+        self.setWindowTitle(title)
+        self._label.setText(message)
+        self.show()
+        self._display_duration = display_duration_seconds
+
+    def showEvent(self, e):
+        super(Popup, self).showEvent(e)
+        self._show_start = time.time()
+        self._show_timer.start()
+        self._fade_away()
+
+    def _fade_away(self):
+        display_time_ratio = (time.time() - self._show_start) / self._display_duration
+        if display_time_ratio >= 1.5:
+            self.hide()
+            return
+        if display_time_ratio > 0.1:
+            opacity = min(1.5 - display_time_ratio, 1.0)
+        else:
+            opacity = display_time_ratio*10
+        self.setWindowOpacity(opacity)
+
+    def hideEvent(self, e):
+        super(Popup, self).hideEvent(e)
+        self._show_timer.stop()
+
+
 # TODO make configuration window
 class LauncherDialog(QtWidgets.QMainWindow):
 
@@ -219,6 +273,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._threads = []
         self._smks_process = None
         self._loading_buttons = dict()
+        self._popup = Popup(self)
 
         self._tags = []
         self._tags_process = None
@@ -299,6 +354,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._loading_gif.frameChanged.connect(self._update_button_loading_icon)
 
         self.config_choice = QtWidgets.QComboBox()
+        self._debug_option = QtWidgets.QCheckBox("debug")
         self._run_smks_studio_button = QtWidgets.QPushButton()
         self._run_smks_studio_button.setObjectName("run_smks_studio")
 
@@ -355,6 +411,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_buttons_layout.addWidget(self._python_update_button)
 
         update_layout.addWidget(self._branch_choice, 5)
+        update_layout.addWidget(self._debug_option, 5)
         update_layout.addWidget(self._repo_path_edit, 10)
         update_layout.addStretch(2)
         update_layout.addWidget(self._smks_update_button, 5)
@@ -869,9 +926,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
             if os.path.isdir(os.path.join(third_party, "smks_core")):
                 shutil.rmtree(os.path.join(third_party, "smks_core"))
             if self.thread() == QtCore.QThread.currentThread():
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Need Update",
-                                  "Some modules should be downloaded before running SMKS Studio",
-                                  QtWidgets.QMessageBox.Ok, self).exec_()
+                self._popup.popup("Need Update",
+                                  "Some modules should be downloaded before running SMKS Studio")
+
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
             return
 
@@ -897,8 +954,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             requirements_last_update = 0
         if requirements_last_update != package_last_update:
             if self.thread() == QtCore.QThread.currentThread():
-                QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Need Update",
-                                  "Some package needs update", QtWidgets.QMessageBox.Ok, self).exec_()
+                self._popup.popup("Need Update", "Some package needs update")
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
             return
 
@@ -949,7 +1005,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         smks_studio_env["PYTHON3DIR"] = py3_path.replace('/', '\\')
 
         config = self.config_choice.currentText()
-        session_parameters = self.smks_configuration_from_preset(config, self._branch_choice.currentText())
+        session_parameters = list(self.smks_configuration_from_preset(config, self._branch_choice.currentText()))
+        session_parameters[-1] = self._debug_option.isChecked()
         smks_studio_env["SMKS_STUDIO_CMD"] = "import smks_studio.gui.app as smks_gui;" \
                                  "smks_gui.run_session(*{})".format(repr(session_parameters))
 
