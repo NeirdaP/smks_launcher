@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 
 def download_python(dst_python_dir, messager=None):
@@ -37,9 +38,21 @@ def update_python(python_dir, requirements=None, messager=None):
     update_env = os.environ.copy()
     if not requirements:
         requirements = "P:/DEV/dev/smks_studio/requirements.txt"
-    update_env["SMKS_STUDIO_ROOT"] = os.path.dirname(requirements)
+    smks_studio_root = os.path.dirname(requirements)
+    update_env["SMKS_STUDIO_ROOT"] = smks_studio_root
     update_env["PYTHONDIR"] = python_dir.replace('/', '\\')
     messager("Updating {} from {}".format(python_dir, requirements))
+
+    for file in os.listdir(smks_studio_root):
+        if "requirements_" in file:
+            requirements_file = os.path.join(smks_studio_root, file)
+            env_name = "{}_env".format(file[len("requirements_"):].rsplit(".", 1)[0])
+
+            process = subprocess.Popen(
+                [r".\PythonSetupEnv.bat", env_name, requirements_file],
+                env=update_env, shell=True
+            )
+            time.sleep(5)
 
     process = subprocess.Popen([r".\PythonSetup.bat"], env=update_env, shell=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

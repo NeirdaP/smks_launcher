@@ -105,9 +105,6 @@ class ProcessWatcher(QtCore.QObject):
         print(out, err)
         print("Ended with status {}".format(self._process.returncode))
 
-        if self._process.returncode != 0:
-            print("WARNING: Something get wrong with the process {}".format(self._process.pid))
-
         if self._end_callback is not None:
             try:
                 self._end_callback(self._process.returncode)
@@ -343,7 +340,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self._requirements_label = QtWidgets.QLabel("Packages")
         self._requirements_preset = QtWidgets.QComboBox()
-        self._requirements_path_edit = PathEditor(placeholder="Requirements path")
+        self._requirements_path_edit = PathEditor(placeholder="Requirements path", mode='r')
 
         update_group = QtWidgets.QGroupBox("Update SMKS Studio")
         self._branch_choice = QtWidgets.QComboBox()
@@ -596,6 +593,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._threads.append(thread)
         QtCore.QTimer.singleShot(3000, thread.start)
 
+    def _handle_smks_update_end_and_run_python_update(self, return_code):
+        self._hide_loading(self._python_update_button)
+        self._handle_smks_update_end(return_code)
+        self._update_python()
+
     def _update_python(self, end_callback=None):
         import functools
 
@@ -606,7 +608,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         requirements_path = self.get_requirements_path()
         if not os.path.isfile(requirements_path):  # if requirements is not ready shift python update
-            self.update_smks_studio(end_callback=self._update_python)
+            self.update_smks_studio(end_callback=self._handle_smks_update_end_and_run_python_update)
             return
 
         python2_path, python3_path = self.get_python_paths()
@@ -817,8 +819,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._python_update_button.setEnabled(enabled)
 
     def _handle_smks_update_end(self, return_code=0):
-        self.update_branches()
         self._hide_loading(self._smks_update_button)
+        if return_code == 1:
+            raise RuntimeError("Cannot update smks_studio")
+        self.update_branches()
 
     def _handle_install_end(self):
         self._hide_loading(self._python_install_button)
@@ -838,7 +842,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         process = updates.update_smks_studio(self._branch_choice.currentText(), repo_path)
 
         if end_callback:
-            end_callback = lambda return_code, callback=end_callback: callback() and self._handle_smks_update_end()
+            end_callback = lambda return_code, callback=end_callback: self._handle_smks_update_end() and callback()
         else:
             end_callback = self._handle_smks_update_end
 

@@ -1,8 +1,6 @@
 BRANCHES = dict(
     OFFICIAL="master",
-    STABLE="9d0e49887a9e9cb84babad4ad789cda60bdd96d4",
     BETA="dev",
-    default="master",
 )
 
 
