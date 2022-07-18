@@ -842,7 +842,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         process = updates.update_smks_studio(self._branch_choice.currentText(), repo_path)
 
         if end_callback:
-            end_callback = lambda return_code, callback=end_callback: self._handle_smks_update_end() and callback()
+            # toto() or bar() -> tricks to call two function in the same lambda
+            end_callback = lambda return_code, callback=end_callback: \
+                self._handle_smks_update_end() or callback()
         else:
             end_callback = self._handle_smks_update_end
 
@@ -976,7 +978,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 self._popup.popup("Need Update", "Some package needs update")
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
             return
-
 
         self.run_smks_studio()
 
