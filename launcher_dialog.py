@@ -885,8 +885,30 @@ class LauncherDialog(QtWidgets.QMainWindow):
             except ValueError:
                 return 0
 
-    def update_last_packages_update(self):
+    def get_last_repo_file_update(self, filename):
         import update_smks
+
+        log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", filename],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
+        out, err = log_process.communicate()
+        try:
+            last_update = int(out)
+        except ValueError:
+            last_update = 0
+        return last_update
+
+    def get_last_requirements_update(self):
+        requirements_last_update = 0
+        repo_path = self.get_repo_path()
+        for file in os.listdir(repo_path):
+            if "requirements" in file:
+                requirements_last_update = max(
+                    self.get_last_repo_file_update(file),
+                    requirements_last_update
+                )
+        return requirements_last_update
+
+    def update_last_packages_update(self):
         launcher_data_folder = file.get_os_data_path("smks_launcher")
 
         try:
@@ -894,13 +916,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
         except OSError:
             pass
 
-        log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
-        out, err = log_process.communicate()
+        last_update = self.get_last_requirements_update()
 
         update_file = os.path.join(launcher_data_folder, "requirements_last_update")
         with open(update_file, 'wb') as fp:
-            fp.write(out)
+            fp.write(str(last_update).encode())
 
     def check_n_run_smks_studio(self):
         import update_smks
@@ -949,18 +969,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         package_last_update = self.get_last_packages_update()
 
-        log_process = subprocess.Popen([update_smks.get_git(), "log", "-1", "--format=%at", "requirements.txt"],
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.get_repo_path())
-        out, err = log_process.communicate()
-        try:
-            requirements_last_update = int(out)
-        except ValueError:
-            requirements_last_update = 0
-        if requirements_last_update != package_last_update:
+        requirements_last_update = self.get_last_requirements_update()
+
+        if requirements_last_update > package_last_update:
             if self.thread() == QtCore.QThread.currentThread():
                 self._popup.popup("Need Update", "Some package needs update")
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
             return
+
 
         self.run_smks_studio()
 
