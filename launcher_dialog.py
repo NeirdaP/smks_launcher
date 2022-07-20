@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 
 import file
@@ -821,6 +822,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def _handle_smks_update_end(self, return_code=0):
         self._hide_loading(self._smks_update_button)
         if return_code == 1:
+            repo_path = self.get_repo_path()
+            shutil.rmtree(repo_path)
             raise RuntimeError("Cannot update smks_studio")
         self.update_branches()
 
@@ -844,7 +847,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if end_callback:
             # toto() or bar() -> tricks to call two function in the same lambda
             end_callback = lambda return_code, callback=end_callback: \
-                self._handle_smks_update_end() or callback()
+                self._handle_smks_update_end(return_code) or callback()
         else:
             end_callback = self._handle_smks_update_end
 

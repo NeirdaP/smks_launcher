@@ -7,6 +7,5 @@ if __name__ == '__main__':
 
     launcher = LauncherDialog()
     launcher.show()
-    # launcher.setTi
 
     app.exec_()

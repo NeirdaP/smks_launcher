@@ -90,7 +90,12 @@ if __name__ == '__main__':
             [git, "clone", "-q", SMKS_REPO_LINK, repo_path]
         )
     branch = args['branch']
-    subprocess.check_call([git, "checkout", branch], cwd=repo_path)
+    try:
+        subprocess.check_call([git, "checkout", branch], cwd=repo_path)
+    except subprocess.CalledProcessError:
+        import traceback
+        traceback.print_exc()
+        exit(1)
     sys.stdout.flush()
     time.sleep(0.5)
 
