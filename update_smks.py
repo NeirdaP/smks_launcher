@@ -144,10 +144,10 @@ if __name__ == '__main__':
         subprocess.check_call([git, "submodule", "init"], cwd=repo_path)
         subprocess.check_call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
 
-    process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet",
-                                "smks_studio_home/python/third_party/smks_core"],
+    process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet"],
                                cwd=repo_path)
     process.wait()
+
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", original_credential]
     )
