@@ -119,6 +119,8 @@ if __name__ == '__main__':
         else:
             sys.stdout.flush()
             success = True
+            break
+
     if not success:
         raise RuntimeError("Update failed!")
 
@@ -132,6 +134,7 @@ if __name__ == '__main__':
             success = False
         else:
             success = True
+            break
 
     if not success:
         third_party_folder = os.path.join(repo_path, "smks_studio_home/python/third_party")
