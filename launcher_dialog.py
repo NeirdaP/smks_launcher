@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import time
 
 import file
@@ -18,6 +19,8 @@ from qt_utils import PathEditor
 from smks_news_feed import SmksNewsFeed
 
 _LOCK = False
+
+INSTALL_DIR = r"C:\software"
 
 
 class ProcessWatcher(QtCore.QObject):
@@ -572,12 +575,18 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def _install_python(self):
         import sys
         import update_python
+        import update_smks
         import threading
 
         if not self._python_update_button.isVisible():
             self.toggle_python_group()
 
         self._run_smks_studio_button.setEnabled(False)
+
+        for item in os.listdir(INSTALL_DIR):
+            if item.startswith("smks_studio"):
+                repo_path = os.path.join(INSTALL_DIR, item)
+                self.del_repo(repo_path)
 
         self._display_loading(self._python_install_button)
 
@@ -819,12 +828,33 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._python_install_button.setEnabled(enabled)
         self._python_update_button.setEnabled(enabled)
 
+    def _force_remove_file(self, del_function, file, error):
+        import stat
+        if not os.path.isfile(file):
+            return
+        print(error)
+        if error[0] is PermissionError:
+            try:
+                os.chmod(file, stat.S_IRWXU)
+                os.unlink(file)
+            except Exception as e:
+                print(e)
+
+    def del_repo(self, repo_path):
+        import update_smks
+        print("Removing folder {}...".format(repo_path))
+        subprocess.call([update_smks.get_git(), "rm", "-r", "."], cwd=repo_path)
+        subprocess.call([update_smks.get_git(), "rm", "-r", "--cached", "."], cwd=repo_path)
+        for i in range(2):
+            shutil.rmtree(repo_path, onerror=self._force_remove_file)
+        print("Folder {} removed !".format(repo_path))
+
     def _handle_smks_update_end(self, return_code=0):
         self._hide_loading(self._smks_update_button)
         if return_code == 1:
             repo_path = self.get_repo_path()
-            shutil.rmtree(repo_path)
-            raise RuntimeError("Cannot update smks_studio")
+            self.del_repo(repo_path)
+            raise RuntimeError("Cannot update smks_studio ! Try it again or contact SAV")
         self.update_branches()
 
     def _handle_install_end(self):
@@ -847,7 +877,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if end_callback:
             # toto() or bar() -> tricks to call two function in the same lambda
             end_callback = lambda return_code, callback=end_callback: \
-                self._handle_smks_update_end(return_code) or callback()
+                self._handle_smks_update_end(return_code) or callback(return_code)
         else:
             end_callback = self._handle_smks_update_end
 
