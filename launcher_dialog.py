@@ -957,7 +957,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         with open(update_file, 'wb') as fp:
             fp.write(str(last_update).encode())
 
-    def check_n_run_smks_studio(self):
+    def check_n_run_smks_studio(self, return_code=None):
         import update_smks
         import functools
         import shutil
@@ -984,6 +984,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
             if os.path.isdir(os.path.join(third_party, "smks_core")):
                 shutil.rmtree(os.path.join(third_party, "smks_core"))
+            if os.path.isdir(os.path.join(third_party, "nuke_tools")):
+                shutil.rmtree(os.path.join(third_party, "nuke_tools"))
             if self.thread() == QtCore.QThread.currentThread():
                 self._popup.popup("Need Update",
                                   "Some modules should be downloaded before running SMKS Studio")
