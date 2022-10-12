@@ -378,7 +378,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_letter_button.clicked.connect(self.open_supa_newsletter)
         self._run_smks_network_button.clicked.connect(self.open_supa_network)
         self._news_choice_buttons_group.buttonToggled.connect(
-            lambda burront: self._news_widget.setCurrentIndex(self._news_choice_buttons_group.checkedId())
+            lambda x: self._news_widget.setCurrentIndex(self._news_choice_buttons_group.checkedId())
         )
 
         main_layout = QtWidgets.QVBoxLayout(self.main_widget)
@@ -993,7 +993,18 @@ class LauncherDialog(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
             return
 
-        fetch_process = subprocess.Popen([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
+        remote_process = subprocess.Popen(
+            [update_smks.get_git(), "remote", "get-url", "origin"], cwd=self.get_repo_path(),
+            stdout=subprocess.PIPE
+        )
+        remote_process.wait()
+        if b'supamonks.local' not in remote_process.stdout.read():
+            subprocess.check_call(
+                [update_smks.get_git(), "remote", "set-url", "origin", update_smks.SMKS_REPO_LINK],
+                cwd=self.get_repo_path()
+            )
+
+        fetch_process = subprocess.Popen([update_smks.get_git(), "fetch"], cwd=self.get_repo_path())
         fetch_process.wait()
         status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
                                           stderr=subprocess.PIPE, cwd=self.get_repo_path())

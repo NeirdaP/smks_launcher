@@ -6,7 +6,7 @@ import utils
 
 GIT_EXE = 'git'
 GIT_CHECKED = False
-SMKS_REPO_LINK = "https://supamonks:supamonk09,@gitlab.com/smks/smks_studio.git"
+SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
 
 
 def get_git():
