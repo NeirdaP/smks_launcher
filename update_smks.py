@@ -6,7 +6,7 @@ import utils
 
 GIT_EXE = 'git'
 GIT_CHECKED = False
-SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
+SMKS_REPO_LINK = "https://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
 
 
 def get_git():
@@ -79,16 +79,25 @@ if __name__ == '__main__':
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", ""]
     )
-
+    subprocess.check_call([
+        GIT_EXE, "config", "--global", "http.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
+    ])
+    subprocess.check_call([
+        GIT_EXE, "config", "--global", "http.sslBackend", r"openssl"
+    ])
     if not os.path.isdir(args['python_path']):
         try:
             os.makedirs(repo_path)
         except OSError:
             pass
         print("Downloading SMKS Studio...")
-        subprocess.check_call(
-            [git, "clone", "-q", SMKS_REPO_LINK, repo_path]
-        )
+        try:
+            subprocess.check_call(
+                [git, "clone", "-q", SMKS_REPO_LINK, repo_path],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except subprocess.CalledProcessError as e:
+            print(e)
     branch = args['branch']
     try:
         subprocess.check_call([git, "checkout", branch], cwd=repo_path)
@@ -142,7 +151,7 @@ if __name__ == '__main__':
             if os.path.isdir(os.path.join(third_party_folder, folder)):
                 shutil.rmtree(os.path.join(third_party_folder, folder))
         subprocess.check_call([git, "submodule", "init"], cwd=repo_path)
-        subprocess.check_call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
+        subprocess.call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet"],
                                cwd=repo_path)

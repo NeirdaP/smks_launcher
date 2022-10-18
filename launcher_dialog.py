@@ -21,6 +21,7 @@ from smks_news_feed import SmksNewsFeed
 _LOCK = False
 
 INSTALL_DIR = r"C:\software"
+SUB_MODULES_ATTEMPTS = 0
 
 
 class ProcessWatcher(QtCore.QObject):
@@ -958,6 +959,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             fp.write(str(last_update).encode())
 
     def check_n_run_smks_studio(self, return_code=None):
+        global SUB_MODULES_ATTEMPTS
         import update_smks
         import functools
         import shutil
@@ -969,29 +971,31 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
 
-        try:
-            if not os.path.isdir(os.path.join(third_party, "kabaret.blender_session", "src", "kabaret")):
-                raise ImportError("No blender session")
-            if not os.path.isdir(os.path.join(third_party, "smks_core")):
-                raise ImportError("No SMKS Core")
-            if not os.path.isdir(python_path):
-                raise ImportError("No smks_studio")
-        except (subprocess.CalledProcessError, ImportError):
-            import traceback
-            traceback.print_exc()
-            print(python_path)
-            if os.path.isdir(os.path.join(third_party, "kabaret.blender_session")):
-                shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
-            if os.path.isdir(os.path.join(third_party, "smks_core")):
-                shutil.rmtree(os.path.join(third_party, "smks_core"))
-            if os.path.isdir(os.path.join(third_party, "nuke_tools")):
-                shutil.rmtree(os.path.join(third_party, "nuke_tools"))
-            if self.thread() == QtCore.QThread.currentThread():
-                self._popup.popup("Need Update",
-                                  "Some modules should be downloaded before running SMKS Studio")
+        if SUB_MODULES_ATTEMPTS < 2:
+            SUB_MODULES_ATTEMPTS += 1
+            try:
+                if not os.path.isdir(os.path.join(third_party, "kabaret.blender_session", "src", "kabaret")):
+                    raise ImportError("No blender session")
+                if not os.path.isdir(os.path.join(third_party, "smks_core")):
+                    raise ImportError("No SMKS Core")
+                if not os.path.isdir(python_path):
+                    raise ImportError("No smks_studio")
+            except (subprocess.CalledProcessError, ImportError):
+                import traceback
+                traceback.print_exc()
+                print(python_path)
+                if os.path.isdir(os.path.join(third_party, "kabaret.blender_session")):
+                    shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
+                if os.path.isdir(os.path.join(third_party, "smks_core")):
+                    shutil.rmtree(os.path.join(third_party, "smks_core"))
+                if os.path.isdir(os.path.join(third_party, "nuke_tools")):
+                    shutil.rmtree(os.path.join(third_party, "nuke_tools"))
+                if self.thread() == QtCore.QThread.currentThread():
+                    self._popup.popup("Need Update",
+                                      "Some modules should be downloaded before running SMKS Studio")
 
-            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
-            return
+                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
+                return
 
         remote_process = subprocess.Popen(
             [update_smks.get_git(), "remote", "get-url", "origin"], cwd=self.get_repo_path(),
