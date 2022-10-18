@@ -79,8 +79,11 @@ if __name__ == '__main__':
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", ""]
     )
+    subprocess.call([
+        GIT_EXE, "config", "--global", "--unset", "http.sslCAInfo"
+    ])
     subprocess.check_call([
-        GIT_EXE, "config", "--global", "http.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
+        GIT_EXE, "config", "--global", "http.https://supa-git.supamonks.local.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
     ])
     subprocess.check_call([
         GIT_EXE, "config", "--global", "http.sslBackend", r"openssl"
@@ -92,12 +95,12 @@ if __name__ == '__main__':
             pass
         print("Downloading SMKS Studio...")
         try:
-            subprocess.check_call(
+            subprocess.check_output(
                 [git, "clone", "-q", SMKS_REPO_LINK, repo_path],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
         except subprocess.CalledProcessError as e:
-            print(e)
+            print(e, e.cmd)
+            raise
     branch = args['branch']
     try:
         subprocess.check_call([git, "checkout", branch], cwd=repo_path)
@@ -155,7 +158,7 @@ if __name__ == '__main__':
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet"],
                                cwd=repo_path)
-    process.wait()
+    process.wait(5)
 
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", original_credential]

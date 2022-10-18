@@ -971,7 +971,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
 
-        if SUB_MODULES_ATTEMPTS < 2:
+        if SUB_MODULES_ATTEMPTS < 1:
             SUB_MODULES_ATTEMPTS += 1
             try:
                 if not os.path.isdir(os.path.join(third_party, "kabaret.blender_session", "src", "kabaret")):
