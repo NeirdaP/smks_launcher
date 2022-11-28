@@ -607,9 +607,12 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def _handle_smks_update_end_and_run_python_update(self, return_code):
         self._hide_loading(self._python_update_button)
         self._handle_smks_update_end(return_code)
-        self._update_python()
+        if return_code == 1:
+            self._update_python(requirements_path=r"P:\DEV\dev\smks_studio\requirements.txt")
+        else:
+            self._update_python()
 
-    def _update_python(self, end_callback=None):
+    def _update_python(self, end_callback=None, requirements_path=""):
         import functools
 
         if not self._python_update_button.isVisible():
@@ -617,7 +620,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self._display_loading(self._python_update_button)
 
-        requirements_path = self.get_requirements_path()
+        if not requirements_path:
+            requirements_path = self.get_requirements_path()
         if not os.path.isfile(requirements_path):  # if requirements is not ready shift python update
             self.update_smks_studio(end_callback=self._handle_smks_update_end_and_run_python_update)
             return
@@ -844,8 +848,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def del_repo(self, repo_path):
         import update_smks
         print("Removing folder {}...".format(repo_path))
-        subprocess.call([update_smks.get_git(), "rm", "-r", "."], cwd=repo_path)
-        subprocess.call([update_smks.get_git(), "rm", "-r", "--cached", "."], cwd=repo_path)
+        subprocess.call(
+            [update_smks.get_git(), "rm", "-r", "."], cwd=repo_path,
+            stdout=subprocess.PIPE
+        )
+        subprocess.call(
+            [update_smks.get_git(), "rm", "-r", "--cached", "."], cwd=repo_path,
+            stdout=subprocess.PIPE
+        )
         for i in range(2):
             shutil.rmtree(repo_path, onerror=self._force_remove_file)
         print("Folder {} removed !".format(repo_path))
@@ -971,31 +981,31 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
 
-        if SUB_MODULES_ATTEMPTS < 1:
-            SUB_MODULES_ATTEMPTS += 1
-            try:
+        try:
+            if SUB_MODULES_ATTEMPTS < 1:
+                SUB_MODULES_ATTEMPTS += 1
                 if not os.path.isdir(os.path.join(third_party, "kabaret.blender_session", "src", "kabaret")):
                     raise ImportError("No blender session")
                 if not os.path.isdir(os.path.join(third_party, "smks_core")):
                     raise ImportError("No SMKS Core")
-                if not os.path.isdir(python_path):
-                    raise ImportError("No smks_studio")
-            except (subprocess.CalledProcessError, ImportError):
-                import traceback
-                traceback.print_exc()
-                print(python_path)
-                if os.path.isdir(os.path.join(third_party, "kabaret.blender_session")):
-                    shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
-                if os.path.isdir(os.path.join(third_party, "smks_core")):
-                    shutil.rmtree(os.path.join(third_party, "smks_core"))
-                if os.path.isdir(os.path.join(third_party, "nuke_tools")):
-                    shutil.rmtree(os.path.join(third_party, "nuke_tools"))
-                if self.thread() == QtCore.QThread.currentThread():
-                    self._popup.popup("Need Update",
-                                      "Some modules should be downloaded before running SMKS Studio")
+            if not os.path.isdir(python_path):
+                raise ImportError("No smks_studio")
+        except (subprocess.CalledProcessError, ImportError):
+            import traceback
+            traceback.print_exc()
+            print(python_path)
+            if os.path.isdir(os.path.join(third_party, "kabaret.blender_session")):
+                shutil.rmtree(os.path.join(third_party, "kabaret.blender_session"))
+            if os.path.isdir(os.path.join(third_party, "smks_core")):
+                shutil.rmtree(os.path.join(third_party, "smks_core"))
+            if os.path.isdir(os.path.join(third_party, "nuke_tools")):
+                shutil.rmtree(os.path.join(third_party, "nuke_tools"))
+            if self.thread() == QtCore.QThread.currentThread():
+                self._popup.popup("Need Update",
+                                  "Some modules should be downloaded before running SMKS Studio")
 
-                QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
-                return
+            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
+            return
 
         remote_process = subprocess.Popen(
             [update_smks.get_git(), "remote", "get-url", "origin"], cwd=self.get_repo_path(),
