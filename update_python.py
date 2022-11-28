@@ -32,6 +32,22 @@ def download_python(dst_python_dir, messager=None):
     copy()
 
 
+def parse_requirements(repo_root, requirements_file):
+    requirements = []
+    sub_requirement = ""
+    with open(requirements_file) as fd:
+        for line in fd:
+            line = line.strip(" \n\t")
+            if line.strip().startswith('-r'):
+                sub_requirement = line[3:]
+                requirements += parse_requirements(
+                    repo_root, os.path.join(repo_root, sub_requirement)
+                )
+    if not sub_requirement:
+        requirements.append(requirements_file)
+    return requirements
+
+
 def update_python(python_dir, requirements=None, messager=None):
     import subprocess
 
@@ -43,16 +59,26 @@ def update_python(python_dir, requirements=None, messager=None):
     update_env["PYTHONDIR"] = python_dir.replace('/', '\\')
     messager("Updating {} from {}".format(python_dir, requirements))
 
-    for file in os.listdir(smks_studio_root):
-        if "requirements_" in file:
-            requirements_file = os.path.join(smks_studio_root, file)
-            env_name = "{}_env".format(file[len("requirements_"):].rsplit(".", 1)[0])
+    requirements = parse_requirements(
+        smks_studio_root, os.path.join(smks_studio_root, "requirements.txt")
+    )
 
-            process = subprocess.Popen(
-                [r".\PythonSetupEnv.bat", env_name, requirements_file],
-                env=update_env, shell=True
-            )
-            time.sleep(5)
+    if len(requirements) == 1:  # only requirements.txt
+        requirements = [
+            os.path.join(f, smks_studio_root)
+            for f in os.listdir(smks_studio_root)
+            if "requirements_" in f
+        ]
+
+    for requirement in requirements:
+        env_name = os.path.basename(requirement)
+        env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
+
+        subprocess.Popen(
+            [r".\PythonSetupEnv.bat", env_name, requirement],
+            env=update_env, shell=True
+        )
+        time.sleep(5)
 
     process = subprocess.Popen([r".\PythonSetup.bat"], env=update_env, shell=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
