@@ -6,7 +6,7 @@ import utils
 
 GIT_EXE = 'git'
 GIT_CHECKED = False
-SMKS_REPO_LINK = "https://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
+SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
 
 
 def get_git():
@@ -140,6 +140,7 @@ if __name__ == '__main__':
     for i in range(2):
         try:
             print("Update Submodules...")
+            subprocess.check_call([git, "submodule", "sync"], cwd=repo_path)
             subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
         except:
             print("Error on update")
@@ -153,7 +154,8 @@ if __name__ == '__main__':
         for folder in os.listdir(third_party_folder):
             if os.path.isdir(os.path.join(third_party_folder, folder)):
                 shutil.rmtree(os.path.join(third_party_folder, folder))
-        subprocess.check_call([git, "submodule", "init"], cwd=repo_path)
+        subprocess.call([git, "submodule", "init"], cwd=repo_path)
+        subprocess.check_call([git, "submodule", "sync"], cwd=repo_path)
         subprocess.call([git, "submodule", "update", "--init", "--remote"], cwd=repo_path)
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet"],
