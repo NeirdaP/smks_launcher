@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     process = subprocess.Popen([git, "submodule", "update", "--remote", "--merge", "--quiet"],
                                cwd=repo_path)
-    process.wait(5)
+    process.wait(8)
 
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", original_credential]
