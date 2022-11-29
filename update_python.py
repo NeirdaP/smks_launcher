@@ -71,14 +71,15 @@ def update_python(python_dir, requirements=None, messager=None):
         ]
 
     for requirement in requirements:
-        env_name = os.path.basename(requirement)
-        env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
+        if os.path.isfile(requirement):
+            env_name = os.path.basename(requirement)
+            env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
 
-        subprocess.Popen(
-            [r".\PythonSetupEnv.bat", env_name, requirement],
-            env=update_env, shell=True
-        )
-        time.sleep(5)
+            subprocess.Popen(
+                [r".\PythonSetupEnv.bat", env_name, requirement],
+                env=update_env, shell=True
+            )
+            time.sleep(7)
 
     process = subprocess.Popen([r".\PythonSetup.bat"], env=update_env, shell=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
