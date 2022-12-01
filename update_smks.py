@@ -70,23 +70,31 @@ if __name__ == '__main__':
 
     args = parse_command_line_args(sys.argv)
     repo_path = args['repo_path']
-    try:
-        original_credential = subprocess.check_output(
-            [git, "config", "--global", "credential.helper"]
-        ).strip().strip(b'\n')
-    except subprocess.CalledProcessError:
-        original_credential = ""
+    config_process1 = subprocess.Popen(
+        [git, "config", "--global", "credential.helper"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+    config_process2 = subprocess.Popen(
+        [git, "config", "--system", "credential.helper"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+
+    config_process1.wait()
+    config_process2.wait()
+
+    original_credential = config_process1.stdout.read().strip() or config_process2.stdout.read().strip()
+
     subprocess.check_call(
         [git, "config", "--global", "credential.helper", ""]
     )
     subprocess.call([
-        GIT_EXE, "config", "--global", "--unset", "http.sslCAInfo"
+        git, "config", "--global", "--unset", "http.sslCAInfo"
     ])
     subprocess.check_call([
-        GIT_EXE, "config", "--global", "http.https://supa-git.supamonks.local.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
+        git, "config", "--global", "http.https://supa-git.supamonks.local.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
     ])
     subprocess.check_call([
-        GIT_EXE, "config", "--global", "http.sslBackend", r"openssl"
+        git, "config", "--global", "http.sslBackend", r"openssl"
     ])
     if not os.path.isdir(args['python_path']):
         try:
@@ -100,6 +108,9 @@ if __name__ == '__main__':
             )
         except subprocess.CalledProcessError as e:
             print(e, e.cmd)
+            subprocess.check_call(
+                [git, "config", "--global", "credential.helper", original_credential]
+            )
             raise
     branch = args['branch']
     try:
@@ -107,6 +118,9 @@ if __name__ == '__main__':
     except subprocess.CalledProcessError:
         import traceback
         traceback.print_exc()
+        subprocess.check_call(
+            [git, "config", "--global", "credential.helper", original_credential]
+        )
         exit(1)
     sys.stdout.flush()
     time.sleep(0.5)
@@ -163,6 +177,6 @@ if __name__ == '__main__':
     process.wait(8)
 
     subprocess.check_call(
-        [git, "config", "--global", "credential.helper", original_credential]
+        [git, "config", "--global", "credential.helper", "wincred"]
     )
     print("Update Ended !")
