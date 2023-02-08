@@ -1,12 +1,14 @@
 import os
 import shutil
 import subprocess
+import zipfile
 
 import utils
 
 GIT_EXE = 'git'
 GIT_CHECKED = False
 SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
+SMKS_BACKUP_ZIP = r"I:\PIPE\smks_studio.zip"
 
 
 def get_git():
@@ -66,10 +68,28 @@ if __name__ == '__main__':
     import sys
     import time
 
-    git = get_git()
-
     args = parse_command_line_args(sys.argv)
     repo_path = args['repo_path']
+
+    try:
+        subprocess.check_call(["ping", "-n", "2", "supa-git"], shell=True)
+    except subprocess.CalledProcessError:
+        print("ERROR: Cannot connect to supa-git")
+        time.sleep(2)
+        print("Using", SMKS_BACKUP_ZIP)
+        repo_file = os.path.join(os.path.dirname(repo_path), os.path.basename(SMKS_BACKUP_ZIP))
+        shutil.copyfile(SMKS_BACKUP_ZIP, repo_file)
+        with zipfile.ZipFile(repo_file, 'r') as zip_ref:
+            zip_ref.extractall(repo_path)
+        if os.path.isdir(repo_path) and os.listdir(repo_path):
+            print("SUCCESS !")
+            exit(0)
+        else:
+            print("ERROR !")
+            exit(-1)
+
+    git = get_git()
+
     config_process1 = subprocess.Popen(
         [git, "config", "--global", "credential.helper"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT
@@ -154,9 +174,25 @@ if __name__ == '__main__':
     for i in range(2):
         try:
             print("Update Submodules...")
-            subprocess.check_call([git, "submodule", "sync"], cwd=repo_path)
-            subprocess.check_call([git, "submodule", "update", "--init"], cwd=repo_path)
-        except:
+            out = subprocess.check_output(
+                args=[git, "submodule", "sync"],
+                cwd=repo_path, stderr=subprocess.STDOUT
+            )
+            print(out)
+            out = subprocess.check_output(
+                args=[git, "submodule", "update", "--init"],
+                cwd=repo_path, stderr=subprocess.STDOUT
+            )
+            print(out)
+        except subprocess.CalledProcessError as e:
+            print("Error on update", e.stdout, e.stderr)
+            success = False
+            third_party = os.path.join(repo_path, "smks_studio_home/python/third_party")
+            for sub_module in os.listdir(third_party):
+                sub_module = os.path.join(third_party, sub_module)
+                if os.path.isdir(sub_module):
+                    shutil.rmtree(sub_module)
+        except Exception as e:
             print("Error on update")
             success = False
         else:
