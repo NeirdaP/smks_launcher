@@ -104,10 +104,11 @@ class ProcessWatcher(QtCore.QObject):
         self.handle_process_output()
         out, err = self._process.communicate()
         if out:
-            out = out.decode()
+            out = out.decode("latin-1")
             if self._window and out:
                 self._window.showMessage(out)
-        print(out, err)
+        if out or err:
+            print(out, err)
         print("Ended with status {}".format(self._process.returncode))
 
         if self._end_callback is not None:
@@ -422,7 +423,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         runs_layout.addWidget(self._run_smks_network_button, 1)
         runs_layout.addWidget(self._run_smks_studio_button, 6)
 
-        self._fetch_tags()
+        # self._fetch_tags()
 
         # ### ICONS ###
         icon = "./images/K.png"
@@ -741,7 +742,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         else:
             self._branch_choice.currentTextChanged.connect(self._handle_branch_changed)
 
-    def _fetch_tags(self):
+    def _fetch_tags(self, *args):
         import update_smks
 
         if self._tags:
