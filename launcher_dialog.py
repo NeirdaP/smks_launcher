@@ -623,7 +623,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         if not requirements_path:
             requirements_path = self.get_requirements_path()
-        if not os.path.isfile(requirements_path):  # if requirements is not ready shift python update
+        if not os.path.isfile(requirements_path)\
+                and self._python_path_preset_choice.currentText() == "LOCAL":
+            # if requirements is not ready shift python update
             self.update_smks_studio(end_callback=self._handle_smks_update_end_and_run_python_update)
             return
 
@@ -914,14 +916,17 @@ class LauncherDialog(QtWidgets.QMainWindow):
         return update_ask_dialog.clickedButton() is update_button
 
     def get_last_packages_update(self):
-        launcher_data_folder = file.get_os_data_path("smks_launcher")
+        update_folder = self.get_repo_path()
+
+        if not os.path.isdir(update_folder):
+            update_folder = file.get_os_data_path("smks_launcher")
 
         try:
-            os.makedirs(launcher_data_folder)
+            os.makedirs(update_folder)
         except OSError:
             pass
 
-        update_file = os.path.join(launcher_data_folder, "requirements_last_update")
+        update_file = os.path.join(update_folder, "requirements_last_update")
 
         if not os.path.isfile(update_file):
             return 0
@@ -949,6 +954,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         repo_path = self.get_repo_path()
         for file in os.listdir(repo_path):
             if "requirements" in file:
+                file = os.path.join(repo_path, file)
                 requirements_last_update = max(
                     self.get_last_repo_file_update(file),
                     requirements_last_update
@@ -956,16 +962,19 @@ class LauncherDialog(QtWidgets.QMainWindow):
         return requirements_last_update
 
     def update_last_packages_update(self):
-        launcher_data_folder = file.get_os_data_path("smks_launcher")
+        update_folder = self.get_repo_path()
+
+        if not os.path.isdir(update_folder):
+            update_folder = file.get_os_data_path("smks_launcher")
 
         try:
-            os.makedirs(launcher_data_folder)
+            os.makedirs(update_folder)
         except OSError:
             pass
 
         last_update = self.get_last_requirements_update()
 
-        update_file = os.path.join(launcher_data_folder, "requirements_last_update")
+        update_file = os.path.join(update_folder, "requirements_last_update")
         with open(update_file, 'wb') as fp:
             fp.write(str(last_update).encode())
 
