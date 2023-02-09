@@ -969,6 +969,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         with open(update_file, 'wb') as fp:
             fp.write(str(last_update).encode())
 
+    def get_selected_branch(self):
+        return updates.get_branches()[self._branch_choice.currentText()]
+
     def check_n_run_smks_studio(self, return_code=None):
         global SUB_MODULES_ATTEMPTS
         import update_smks
@@ -977,6 +980,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         import utils
 
         self._display_loading(self._run_smks_studio_button)
+        repo_path = self.get_repo_path()
 
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
@@ -1009,22 +1013,31 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return
 
         remote_process = subprocess.Popen(
-            [update_smks.get_git(), "remote", "get-url", "origin"], cwd=self.get_repo_path(),
+            [update_smks.get_git(), "remote", "get-url", "origin"], cwd=repo_path,
             stdout=subprocess.PIPE
         )
         remote_process.wait()
         if b'supamonks.local' not in remote_process.stdout.read():
             subprocess.check_call(
                 [update_smks.get_git(), "remote", "set-url", "origin", update_smks.SMKS_REPO_LINK],
-                cwd=self.get_repo_path()
+                cwd=repo_path
             )
 
-        fetch_process = subprocess.Popen([update_smks.get_git(), "fetch"], cwd=self.get_repo_path())
-        fetch_process.wait()
-        status_process = subprocess.Popen([update_smks.get_git(), "status"], stdout=subprocess.PIPE,
-                                          stderr=subprocess.PIPE, cwd=self.get_repo_path())
-        out, err = status_process.communicate()
-        if b"is behind" in out:
+        update = False
+        branch = update_smks.get_current_branch(repo_path)
+        if branch != self.get_selected_branch():
+            update = True
+
+        if not update:
+            fetch_process = subprocess.Popen([update_smks.get_git(), "fetch"], cwd=repo_path)
+            fetch_process.wait()
+            status_process = subprocess.Popen(
+                [update_smks.get_git(), "status"], cwd=repo_path,
+                stdout=subprocess.PIPE,stderr=subprocess.PIPE
+            )
+            out, err = status_process.communicate()
+            update = b"is behind" in out
+        if update:
             answer = self.ask_update()
             if answer:
                 QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))

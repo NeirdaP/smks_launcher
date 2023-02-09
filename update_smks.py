@@ -216,3 +216,15 @@ if __name__ == '__main__':
         [git, "config", "--global", "credential.helper", "wincred"]
     )
     print("Update Ended !")
+
+
+def get_current_branch(repo_path):
+    branch_process = subprocess.Popen(
+        [get_git(), "branch"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=repo_path,
+    )
+    out, err = branch_process.communicate()
+    branch = out.decode("utf-8").split("\n")
+    branch = next(b for b in branch if b.startswith('*'))
+    branch = branch[2:].strip(" \n\r")
+    return branch
