@@ -1,3 +1,4 @@
+import ctypes
 import sys
 
 
@@ -17,6 +18,20 @@ def main_gui(args):
     from launcher_dialog import LauncherDialog
 
     app = QtWidgets.QApplication(args)
+    app.setApplicationName("Smks Launcher")
+    app.setOrganizationName("Supamonks")
+
+    try:
+        # make windows handle the process separately from other
+        # python process
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "{}.{}.valid".format(
+                QtWidgets.QApplication.organizationName(),
+                QtWidgets.QApplication.applicationName()
+            )
+        )
+    except AttributeError:
+        pass
 
     launcher = LauncherDialog()
     launcher.show()
