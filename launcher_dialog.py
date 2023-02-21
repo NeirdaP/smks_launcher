@@ -989,7 +989,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         import utils
 
         self._display_loading(self._run_smks_studio_button)
-        repo_path = self.get_repo_path()
+        update = False
 
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
@@ -1027,15 +1027,18 @@ class LauncherDialog(QtWidgets.QMainWindow):
         )
         remote_process.wait()
         if b'supamonks.local' not in remote_process.stdout.read():
-            subprocess.check_call(
-                [update_smks.get_git(), "remote", "set-url", "origin", update_smks.SMKS_REPO_LINK],
-                cwd=repo_path
-            )
+            try:
+                subprocess.check_call(
+                    [update_smks.get_git(), "remote", "set-url", "origin", update_smks.SMKS_REPO_LINK],
+                    cwd=repo_path
+                )
+            except subprocess.CalledProcessError:
+                update = True
 
-        update = False
-        branch = update_smks.get_current_branch(repo_path)
-        if branch != self.get_selected_branch():
-            update = True
+        if not update:
+            branch = update_smks.get_current_branch(repo_path)
+            if branch != self.get_selected_branch():
+                update = True
 
         if not update:
             fetch_process = subprocess.Popen([update_smks.get_git(), "fetch"], cwd=repo_path)
