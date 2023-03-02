@@ -1,6 +1,7 @@
 import os
 import sys
-import time
+
+from process_utils import ProcessAgent
 
 
 def download_python(dst_python_dir, messager=None):
@@ -48,7 +49,9 @@ def parse_requirements(repo_root, requirements_file):
     return requirements
 
 
-def update_python(python_dir, requirements=None, messager=None):
+def make_python_update_process(
+        python_dir, requirements=None, end_callback=None, messager=None
+):
     import subprocess
 
     update_env = os.environ.copy()
@@ -70,20 +73,26 @@ def update_python(python_dir, requirements=None, messager=None):
             if "requirements_" in f
         ]
 
+    processes = []
     for requirement in requirements:
         if os.path.isfile(requirement):
             env_name = os.path.basename(requirement)
             env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
 
-            subprocess.Popen(
+            process = ProcessAgent(
                 [r".\PythonSetupEnv.bat", env_name, requirement],
-                env=update_env, shell=True
+                dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
+                timeout=7, pool=1
             )
-            time.sleep(7)
+            processes.append(process)
 
-    process = subprocess.Popen([r".\PythonSetup.bat"], env=update_env, shell=True,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return process
+    process = ProcessAgent(
+        [r".\PythonSetup.bat"],
+        dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
+        end_callback=end_callback, pool=1
+    )
+    processes.append(process)
+    return processes
 
 
 def install_python(python_dir, reinstall=False, messager=None, end_callback=None, reboot_python=None):

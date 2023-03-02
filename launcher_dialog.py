@@ -1,11 +1,12 @@
 import os
 import shutil
-import tempfile
 import time
 
 import file
 import updates
 import subprocess
+
+from process_utils import ProcessWatcher, Thread, ProcessAgent
 
 try:
     from queue import Queue, Empty
@@ -18,177 +19,8 @@ from qtpy import QtWidgets, QtCore, QtGui
 from qt_utils import PathEditor
 from smks_news_feed import SmksNewsFeed
 
-_LOCK = False
-
 INSTALL_DIR = r"C:\software"
 SUB_MODULES_ATTEMPTS = 0
-
-
-class ProcessWatcher(QtCore.QObject):
-
-    def __init__(self, process, window=None, timeout=-1, end_callback=None):
-        super(ProcessWatcher, self).__init__(window)
-        self._process = process
-        self._window = window
-        self._timeout = timeout
-        self._end_callback = end_callback
-        self._ended = False
-
-        self._reader = None
-        self._read_queue = Queue()
-
-        self._timer = QtCore.QTimer(self)
-        self._timer.setSingleShot(True)
-
-        self._start_time = 0
-        self._end_time = 0
-
-    def handle_process_output(self):
-        import time
-        import random
-
-        global _LOCK
-
-        while _LOCK:
-            time.sleep(0.1)
-        _LOCK = True
-
-        lines = []
-
-        while True:
-            try:
-                line = self._read_queue.get_nowait()  # or q.get(timeout=.1)
-            except Empty:
-                break
-            else:
-                lines.append(line)
-
-        if self._window:
-            for line in lines:
-                low_line = line.lower()
-                if 'error' in low_line or ' end' in low_line or random.randint(0, 2) == 0:
-                    self._window.showMessage(line)
-                else:
-                    print(line)
-        _LOCK = False
-
-    def _end(self):
-        self._ended = True
-        self._timer.stop()
-        self._timer.deleteLater()
-        self.deleteLater()
-
-    def _handle_os_error(self):
-        import time
-        print("Cannot fetch outputs of process {}".format(self._process))
-        while self._process and self._process.poll() is None:
-            if (time.time() - self._start_time) > self._timeout > 0:
-                raise RuntimeError('Timeout reached: process aborted')
-        self._end()
-        return self._process.returncode or -1
-
-    def _handle_process_error(self):
-        import traceback
-        traceback.print_exc()
-        self._process.poll()
-        if self._process and self._process.returncode is None:
-            try:
-                self._process.terminate()
-            except OSError:
-                pass
-        print("Ended with status {}".format(self._process.returncode))
-        self._end()
-        return self._process.returncode or -1
-
-    def _handle_process_normal_end(self):
-        self.handle_process_output()
-        out, err = self._process.communicate()
-        if out:
-            out = out.decode("latin-1")
-            if self._window and out:
-                self._window.showMessage(out)
-        if out or err:
-            print(out, err)
-        print("Ended with status {}".format(self._process.returncode))
-
-        if self._end_callback is not None:
-            try:
-                self._end_callback(self._process.returncode)
-            except TypeError as e:
-                print(e)
-                self._end_callback()
-        self._end()
-        return self._process.returncode
-
-    def watch_process(self):
-        import time
-        if not self._process:
-            raise RuntimeError("Process to watch does not exist !")
-
-        try:
-            if self._process.poll() is None:
-                if (time.time() - self._start_time) > self._timeout > 0:
-                    raise RuntimeError('Timeout reached: process aborted')
-                self.handle_process_output()
-        except OSError:
-            return self._handle_os_error()
-        except (IOError, RuntimeError):
-            return self._handle_process_error()
-
-        if self._process.returncode is not None:
-            return self._handle_process_normal_end()
-        self._timer.start(300)
-
-        return None
-
-    def _read(self):
-        while self._process.poll() is None:
-            for stream in [self._process.stderr, self._process.stdout]:
-                if not stream:
-                    continue
-
-                line = stream.readline()
-                while line:
-                    try:
-                        line = line[:-1].decode("utf-8")
-                    except ValueError:
-                        continue
-                    self._read_queue.put(line)
-                    line = stream.readline()
-
-    def run(self):
-        import time
-        self._start_time = time.time()
-
-        self._reader = Thread(target=self._read)
-        self._reader.start()
-
-        self._timer.timeout.connect(self.watch_process)
-        self._timer.start(30)
-
-    def start(self):
-        self.run()
-
-    def is_alive(self):
-        return not self._ended
-
-
-class Thread(QtCore.QThread):
-
-    def __init__(self, target=None, args=None, kwargs=None):
-        super(Thread, self).__init__()
-        self.target = target
-        self._args = args or []
-        self._kwargs = kwargs or dict()
-        self._ended = False
-
-    def run(self):
-        self.target(*self._args, **self._kwargs)
-        self._ended = True
-        self.exec_()
-
-    def is_alive(self):
-        return self.isRunning() and not self._ended
 
 
 class RequirementsDialog(QtWidgets.QDialog):
@@ -272,8 +104,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self.setCentralWidget(self.main_widget)
         QtWidgets.QApplication.instance().setStyle(QtWidgets.QStyleFactory.create("windowsvista"))
 
-        self._process = []
-        self._threads = []
         self._smks_process = None
         self._loading_buttons = dict()
         self._popup = Popup(self)
@@ -577,8 +407,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def _install_python(self):
         import sys
         import update_python
-        import update_smks
-        import threading
 
         if not self._python_update_button.isVisible():
             self.toggle_python_group()
@@ -594,15 +422,17 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         python2_path, python3_path = self.get_python_paths()
         thread = Thread(target=update_python.install_python, args=[python2_path],
-                                  kwargs=dict(reinstall=True, messager=self.showMessage))
-        self._threads.append(thread)
+                        kwargs=dict(reinstall=True, messager=self.showMessage))
+
         thread.start()
+        ProcessAgent.register_thread(thread)
+
         reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
         thread = Thread(target=update_python.install_python, args=[python3_path],
-                                  kwargs=dict(reinstall=reboot, messager=self.showMessage,
+                        kwargs=dict(reinstall=reboot, messager=self.showMessage,
                                               end_callback=self.exit if reboot else self._handle_install_end,
                                               reboot_python=os.path.join(python3_path, "python") if reboot else None))
-        self._threads.append(thread)
+        ProcessAgent.register_thread(thread)
         QtCore.QTimer.singleShot(3000, thread.start)
 
     def _handle_smks_update_end_and_run_python_update(self, return_code):
@@ -634,7 +464,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             100, functools.partial(self._update_python2, python2_path, requirements_path)
         )
         QtCore.QTimer.singleShot(
-            7000, functools.partial(self._update_python3, python3_path, requirements_path, end_callback)
+            2000, functools.partial(self._update_python3, python3_path, requirements_path, end_callback)
         )
 
     def _update_python2(self, python2_path, requirements_path, end_callback=None):
@@ -642,16 +472,16 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         if not os.path.isdir(python2_path):
             thread = Thread(target=update_python.install_python, args=[python2_path],
-                                      kwargs=dict(messager=self.showMessage))
-            self._threads.append(thread)
+                            kwargs=dict(messager=self.showMessage))
             thread.start()
         else:
-            process = update_python.update_python(python2_path, messager=self.showMessage,
-                                                  requirements=requirements_path)
-            watcher = ProcessWatcher(process, window=self, end_callback=end_callback)
-            watcher.start()
-            self._process.append(process)
-            self._threads.append(watcher)
+            processes = update_python.make_python_update_process(
+                python2_path, messager=self.showMessage,
+                requirements=requirements_path,
+                end_callback=end_callback
+            )
+            for p in processes:
+                p.run_process(self)
         self.update_last_packages_update()
 
     def _update_python3(self, python3_path, requirements_path, end_callback=None):
@@ -661,19 +491,19 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if not os.path.isdir(python3_path):
             reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
             thread = Thread(target=update_python.install_python, args=[python3_path],
-                                      kwargs=dict(reinstall=reboot, messager=self.showMessage,
+                            kwargs=dict(reinstall=reboot, messager=self.showMessage,
                                                   end_callback=end_callback or (self.exit if reboot else self._handle_update_end),
                                                   reboot_python=os.path.join(python3_path,
                                                                              "python") if reboot else None))
             self._threads.append(thread)
             thread.start()
         else:
-            process = update_python.update_python(python3_path, messager=self.showMessage,
-                                                  requirements=requirements_path)
-            watcher = ProcessWatcher(process, window=self, end_callback=end_callback or self._handle_update_end)
-            watcher.start()
-            self._process.append(process)
-            self._threads.append(watcher)
+            processes = update_python.make_python_update_process(
+                python3_path, messager=self.showMessage,
+                requirements=requirements_path, end_callback=end_callback or self._handle_update_end
+            )
+            for p in processes:
+                p.run_process(self)
         self.update_last_packages_update()
 
     def get_requirements_path(self, update=True):
@@ -713,7 +543,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._loading_gif.stop()
 
     def update_data(self):
-        import update_smks
         self._python_path_preset_choice.addItem("LOCAL")
         self._python_path_preset_choice.addItem("SERVER")
         self._python_path_preset_choice.addItem("CUSTOM")
@@ -756,7 +585,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 subprocess.call([update_smks.get_git(), 'fetch'], cwd=self.get_repo_path())
                 self._tags_process = subprocess.Popen([update_smks.get_git(), 'tag'], stdout=subprocess.PIPE,
                                                         stderr=subprocess.PIPE, cwd=self.get_repo_path())
-                ProcessWatcher(self._tags_process, self, end_callback=self._fetch_tags).start()
+                ProcessWatcher(self._tags_process, window=self, end_callback=self._fetch_tags).start()
         else:
             if self._tags_process.poll() is not None:
                 out, err = self._tags_process.communicate()
@@ -895,11 +724,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         else:
             end_callback = self._handle_smks_update_end
 
-        watcher = ProcessWatcher(process, window=self, end_callback=end_callback)
-        watcher.start()
-
-        self._process.append(process)
-        self._threads.append(watcher)
+        ProcessAgent.watch_process(process, end_callback, window=self)
         self._display_loading(self._smks_update_button)
 
     def ask_update(self):
@@ -986,7 +811,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         import update_smks
         import functools
         import shutil
-        import utils
 
         self._display_loading(self._run_smks_studio_button)
         update = False
@@ -1085,17 +909,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     def run_smks_studio(self, *args):  # *args for callback
         import os
-        import functools
 
         self._display_loading(self._run_smks_studio_button)
 
-        for process in self._process:
-            process.poll()
-
-        self._process = [process for process in self._process if process.returncode is None]
-        self._threads = [thread for thread in self._threads if thread.is_alive()]
-
-        if self._process or self._threads:
+        if ProcessAgent.processes_are_running():
             QtCore.QTimer.singleShot(1000, self.run_smks_studio)
             self._run_smks_studio_button.setEnabled(False)
             return

@@ -1,3 +1,5 @@
+import os
+
 BRANCHES = dict(
     OFFICIAL="master",
     BETA="dev",
@@ -25,7 +27,9 @@ def update_smks_studio(branch=None, repo_path=None):
     import sys
     import subprocess
 
-    cmd = [sys.executable, update_smks.__file__]
+    cmd = [sys.executable, "-u", update_smks.__file__]
+    environ = os.environ.copy()
+    environ["PYTHONUNBUFFERED"] = "1"
 
     if branch is not None:
         branch = get_branches().get(branch, branch)
@@ -34,5 +38,7 @@ def update_smks_studio(branch=None, repo_path=None):
     if branch is not None:
         cmd += ['--repo_path', repo_path]
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
     return process
