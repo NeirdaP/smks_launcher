@@ -82,7 +82,7 @@ def make_python_update_process(
             process = ProcessAgent(
                 [r".\PythonSetupEnv.bat", env_name, requirement],
                 dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
-                timeout=7, pool=1
+                watch_timeout=7, pool=1
             )
             processes.append(process)
 

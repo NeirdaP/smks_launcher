@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import time
 
 import file
@@ -741,7 +742,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         return update_ask_dialog.clickedButton() is update_button
 
     def get_last_packages_update(self):
-        update_folder = self.get_repo_path()
+        update_folder = os.path.join(tempfile.gettempdir(), "SMKS_LAUNCHER")
 
         if not os.path.isdir(update_folder):
             update_folder = file.get_os_data_path("smks_launcher")

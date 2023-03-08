@@ -11,11 +11,15 @@ _LOCK = False
 
 class ProcessWatcher(QtCore.QObject):
 
-    def __init__(self, process, window=None, timeout=-1, end_callback=None):
+    def __init__(
+            self, process, window=None, timeout=-1,
+            end_callback=None, watch_timeout=-1
+    ):
         super(ProcessWatcher, self).__init__(window)
         self._process = process
         self._window = window
         self._timeout = timeout
+        self._watch_timeout = watch_timeout
         self._end_callback = end_callback
         self._ended = False
 
@@ -67,6 +71,8 @@ class ProcessWatcher(QtCore.QObject):
         import time
         print("Cannot fetch outputs of process {}".format(self._process))
         while self._process and self._process.poll() is None:
+            if (time.time() - self._start_time) > self._watch_timeout > 0:
+                break
             if (time.time() - self._start_time) > self._timeout > 0:
                 raise RuntimeError('Timeout reached: process aborted')
         self._end()
@@ -84,6 +90,19 @@ class ProcessWatcher(QtCore.QObject):
         print("Ended with status {}".format(self._process.returncode))
         self._end()
         return self._process.returncode or -1
+
+    def _handle_process_unfinished(self):
+        print("Watch is ending before the process end")
+
+        self._process.poll()
+        if self._end_callback is not None:
+            try:
+                self._end_callback(self._process.returncode)
+            except TypeError as e:
+                print(e)
+                self._end_callback()
+        self._end()
+        return self._process.returncode
 
     def _handle_process_normal_end(self):
         self.handle_process_output()
@@ -113,6 +132,8 @@ class ProcessWatcher(QtCore.QObject):
 
         try:
             if self._process.poll() is None:
+                if (time.time() - self._start_time) > self._watch_timeout > 0:
+                    return self._handle_process_unfinished()
                 if (time.time() - self._start_time) > self._timeout > 0:
                     raise RuntimeError('Timeout reached: process aborted')
                 self.handle_process_output()
@@ -183,11 +204,13 @@ class ProcessAgent(object):
     _threads = []  # type: list[threading.Thread]
     _count = 0
 
-    def __init__(self, command, kwargs, timeout=-1, end_callback=None, pool=0):
+    def __init__(self, command, kwargs, timeout=-1, end_callback=None,
+                 watch_timeout=-1, pool=0):
         super().__init__()
         self.command = command
         self.kwargs = kwargs
         self.timeout = timeout
+        self.watch_timeout = watch_timeout
         self.end_callback = end_callback
         self.pool = pool
         self.process = None
@@ -216,10 +239,13 @@ class ProcessAgent(object):
         return any(cls._processes) or any(cls._threads)
 
     @classmethod
-    def watch_process(cls, process, end_callback=None, timeout=-1, window=None):
+    def watch_process(
+        cls, process, end_callback=None, timeout=-1, window=None,
+        watch_timeout=-1
+    ):
         watcher = ProcessWatcher(
             process, window=window, end_callback=end_callback,
-            timeout=timeout
+            timeout=timeout, watch_timeout=watch_timeout
         )
         watcher.start()
 
@@ -261,7 +287,7 @@ class ProcessAgent(object):
         self.process = subprocess.Popen(self.command, **self.kwargs)
         self.watcher = self.__class__.watch_process(
             self.process, end_callback=end_callback, window=window,
-            timeout=self.timeout
+            timeout=self.timeout, watch_timeout=self.watch_timeout
         )
 
     def __hash__(self):
