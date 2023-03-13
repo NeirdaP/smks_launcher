@@ -23,7 +23,8 @@ class ProcessWatcher(QtCore.QObject):
         self._end_callback = end_callback
         self._ended = False
 
-        self._reader = None
+        self._last_read = time.time()
+        self._reader = None  # type: None|threading.Thread
         self._read_queue = Queue()
 
         self._timer = QtCore.QTimer(self)
@@ -41,6 +42,9 @@ class ProcessWatcher(QtCore.QObject):
         while _LOCK:
             time.sleep(0.1)
         _LOCK = True
+
+        if time.time() - self._last_read > 10:
+            self.kill_reader()
 
         lines = []
 
@@ -106,7 +110,10 @@ class ProcessWatcher(QtCore.QObject):
 
     def _handle_process_normal_end(self):
         self.handle_process_output()
-        out, err = self._process.communicate()
+        try:
+            out, err = self._process.communicate()
+        except ValueError:
+            out, err = b'', b''
         if out:
             out = out.decode("latin-1")
             if self._window and out:
@@ -155,10 +162,13 @@ class ProcessWatcher(QtCore.QObject):
                 if not stream:
                     continue
 
+                self._last_read = time.time()
+                print("read", self._last_read)
                 try:
                     line = stream.readline()
                 except ValueError:  # closed file
                     return
+                print("read", time.time())
                 while line:
                     try:
                         line = line[:-1].decode("latin-1")
@@ -173,13 +183,28 @@ class ProcessWatcher(QtCore.QObject):
                         return
                     time.sleep(0.06)
 
-    def run(self):
-        import time
-        self._start_time = time.time()
+    def kill_reader(self):
+        try:
+            self._process.stdout.close()
+        except Exception as e:
+            print(e)
+        try:
+            self._process.stderr.close()
+        except Exception as e:
+            print(e)
 
+    def reset_read_thread(self):
+        if self._reader and self._reader.is_alive():
+            del self._reader
         self._reader = Thread(target=self._read)
         self._reader.finished.connect(self._reader.deleteLater)
         self._reader.start()
+        self._last_read = time.time()
+
+    def run(self):
+        import time
+        self._start_time = time.time()
+        self.reset_read_thread()
 
         self._timer.timeout.connect(self.watch_process)
         self._timer.start(30)
@@ -278,7 +303,8 @@ class ProcessAgent(object):
         if end_callback:
             self.end_callback = end_callback
         if self.pool:
-            if self.pool not in self._processes_pools:
+            current_pool =  self._processes_pools.get(self.pool)
+            if not current_pool:
                 self._processes_pools[self.pool] = [self]
                 end_callback = functools.partial(self.process_end_callback, self, window)
             else:

@@ -788,7 +788,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         return requirements_last_update
 
     def update_last_packages_update(self):
-        update_folder = self.get_repo_path()
+        update_folder = os.path.join(tempfile.gettempdir(), "SMKS_LAUNCHER")
 
         if not os.path.isdir(update_folder):
             update_folder = file.get_os_data_path("smks_launcher")
@@ -884,7 +884,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         requirements_last_update = self.get_last_requirements_update()
 
-        if requirements_last_update > package_last_update:
+        if abs(requirements_last_update - package_last_update) > 10:
             if self.thread() == QtCore.QThread.currentThread():
                 self._popup.popup("Need Update", "Some package needs update")
             QtCore.QTimer.singleShot(500, functools.partial(self._update_python, self.run_smks_studio))
