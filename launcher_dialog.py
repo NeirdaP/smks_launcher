@@ -2,6 +2,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 
 import file
@@ -315,8 +316,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._ecology_button.setChecked(True)
 
         if "install_python" in QtWidgets.QApplication.instance().arguments() or sys.executable.startswith("I:"):
+            do_install = not os.path.isdir(self.get_python_paths()[0])
             flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
-            if not os.path.isfile("C:\\.smks_installed") and not os.path.isfile(flag_path):
+            do_install = do_install or not os.path.isfile(flag_path)
+            if do_install:
                 open(flag_path, 'w').close()
                 QtCore.QTimer.singleShot(1000, self._install_python)
         if "update_python" in QtWidgets.QApplication.instance().arguments():
@@ -418,7 +421,13 @@ class LauncherDialog(QtWidgets.QMainWindow):
         for item in os.listdir(INSTALL_DIR):
             if item.startswith("smks_studio"):
                 repo_path = os.path.join(INSTALL_DIR, item)
-                self.del_repo(repo_path)
+                thread = threading.Thread(
+                    target=lambda _path=repo_path:
+                        self.del_repo(repo_path) and self._install_python()
+                )
+                thread.start()
+                ProcessAgent.register_thread(thread)
+                return
 
         self._display_loading(self._python_install_button)
 
@@ -681,15 +690,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     def del_repo(self, repo_path):
         import update_smks
+
+        ProcessAgent.wait_for_remaining_processes()
         print("Removing folder {}...".format(repo_path))
-        subprocess.call(
-            [update_smks.get_git(), "rm", "-r", "."], cwd=repo_path,
-            stdout=subprocess.PIPE
-        )
-        subprocess.call(
-            [update_smks.get_git(), "rm", "-r", "--cached", "."], cwd=repo_path,
-            stdout=subprocess.PIPE
-        )
         for i in range(2):
             shutil.rmtree(repo_path, onerror=self._force_remove_file)
         print("Folder {} removed !".format(repo_path))
@@ -698,7 +701,13 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._hide_loading(self._smks_update_button)
         if return_code == 1:
             repo_path = self.get_repo_path()
-            self.del_repo(repo_path)
+            thread = threading.Thread(
+                target=lambda _path=repo_path:
+                self.del_repo(repo_path)
+            )
+            thread.start()
+            ProcessAgent.register_thread(thread)
+            time.sleep(1)
             raise RuntimeError("Cannot update smks_studio ! Try it again or contact SAV")
         self.update_branches()
 
@@ -964,8 +973,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if self._smks_process:
             self._smks_process.poll()
             if self._smks_process and self._smks_process.returncode is not None and self._smks_process.returncode != 0:
-                QtCore.QTimer.singleShot(500, self._update_python)
-                QtCore.QTimer.singleShot(10000, self.run_smks_studio)
+                QtCore.QTimer.singleShot(500, self.update_smks_studio)
+                QtCore.QTimer.singleShot(5000, self._update_python)
+                QtCore.QTimer.singleShot(15000, self.run_smks_studio)
             else:
                 self._hide_loading(self._smks_update_button)
                 self._hide_loading(self._run_smks_studio_button)

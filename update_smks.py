@@ -154,6 +154,7 @@ if __name__ == '__main__':
     for i in range(2):
         try:
             print("Update...")
+            subprocess.check_call([git, "checkout", "*"], cwd=repo_path)
             return_code = subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", branch],
                                                 cwd=repo_path)
             subprocess.check_call([git, "pull", "-q", "--strategy-option=theirs", "origin", "--quiet", branch],

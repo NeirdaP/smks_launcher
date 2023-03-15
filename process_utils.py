@@ -180,19 +180,22 @@ class ProcessWatcher(QtCore.QObject):
                     except ValueError:  # closed file
                         return
                     self._last_read = time.time()
-                    time.sleep(0.06)
+                    time.sleep(0.01)
+                time.sleep(0.06)
 
     def kill_reader(self):
         if self._process.stdout:
             try:
-                self._process.stdout.close()
+                self._process.stdout.flush()
             except Exception as e:
                 print(e)
+            self._process.stdout = None
         if self._process.stderr:
             try:
-                self._process.stderr.close()
+                self._process.stderr.flush()
             except Exception as e:
                 print(e)
+            self._process.stderr = None
 
     def reset_read_thread(self):
         if self._reader and self._reader.is_alive():
@@ -214,8 +217,13 @@ class ProcessWatcher(QtCore.QObject):
         self.run()
 
     def wait(self):
+        count_after_process_end = 0
         while self.is_alive():
             time.sleep(0.01)
+            if self._process.poll() is not None:
+                count_after_process_end += 1
+                if count_after_process_end > 100:
+                    break
 
     def join(self):  # alias
         self.wait()
@@ -248,7 +256,12 @@ class ProcessAgent(object):
         for process in cls._processes:
             process.wait()
         for process in cls._threads:
-            process.join()
+            try:
+                process.join()
+            except RuntimeError:
+                pass
+        cls._processes = []
+        cls._threads = []
 
     @classmethod
     def register_thread(cls, thread):
