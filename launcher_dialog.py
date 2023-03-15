@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 import tempfile
 import time
 
@@ -313,7 +314,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self._ecology_button.setChecked(True)
 
-        if "install_python" in QtWidgets.QApplication.instance().arguments():
+        if "install_python" in QtWidgets.QApplication.instance().arguments() or sys.executable.startswith("I:"):
             flag_path = os.path.join(os.path.expanduser('~'), ".smks_installed")
             if not os.path.isfile("C:\\.smks_installed") and not os.path.isfile(flag_path):
                 open(flag_path, 'w').close()

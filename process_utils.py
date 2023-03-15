@@ -43,7 +43,7 @@ class ProcessWatcher(QtCore.QObject):
             time.sleep(0.1)
         _LOCK = True
 
-        if time.time() - self._last_read > 10:
+        if time.time() - self._last_read > 15:
             self.kill_reader()
 
         lines = []
@@ -163,12 +163,10 @@ class ProcessWatcher(QtCore.QObject):
                     continue
 
                 self._last_read = time.time()
-                print("read", self._last_read)
                 try:
                     line = stream.readline()
                 except ValueError:  # closed file
                     return
-                print("read", time.time())
                 while line:
                     try:
                         line = line[:-1].decode("latin-1")
@@ -181,17 +179,20 @@ class ProcessWatcher(QtCore.QObject):
                         line = stream.readline()
                     except ValueError:  # closed file
                         return
+                    self._last_read = time.time()
                     time.sleep(0.06)
 
     def kill_reader(self):
-        try:
-            self._process.stdout.close()
-        except Exception as e:
-            print(e)
-        try:
-            self._process.stderr.close()
-        except Exception as e:
-            print(e)
+        if self._process.stdout:
+            try:
+                self._process.stdout.close()
+            except Exception as e:
+                print(e)
+        if self._process.stderr:
+            try:
+                self._process.stderr.close()
+            except Exception as e:
+                print(e)
 
     def reset_read_thread(self):
         if self._reader and self._reader.is_alive():
