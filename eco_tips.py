@@ -229,6 +229,9 @@ def get_today_eco():
                             img_url = img.attrib["src"]
                             if img_url.startswith('file:'):
                                 continue
+                            if img_url.endswith('svg'):
+                                img.attrib["height"] = "0"
+                                continue
 
                             if ECO_SERVER not in img_url:
                                 img_url = ECO_SERVER + img_url
