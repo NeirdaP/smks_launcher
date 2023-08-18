@@ -696,6 +696,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         for i in range(2):
             shutil.rmtree(repo_path, onerror=self._force_remove_file)
         print("Folder {} removed !".format(repo_path))
+        self._hide_loading(self._run_smks_studio_button)
+        self.showMessage("ERROR when running, please re-run")
 
     def _handle_smks_update_end(self, return_code=0):
         self._hide_loading(self._smks_update_button)
