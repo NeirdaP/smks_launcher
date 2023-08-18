@@ -429,6 +429,11 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 ProcessAgent.register_thread(thread)
                 return
 
+        if os.path.isdir("C:/software/Python3KBR/python"):
+            if not self._handle_install_end:
+                return
+            return self._handle_install_end()
+
         self._display_loading(self._python_install_button)
 
         python2_path, python3_path = self.get_python_paths()

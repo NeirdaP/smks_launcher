@@ -1,4 +1,5 @@
 import ctypes
+import os
 import sys
 
 
@@ -6,7 +7,7 @@ def main_batch(args):
     import update_python
     import updates
 
-    if "install_python" in args:
+    if "install_python" in args and not os.path.isdir("C:/software/Python3KBR/python"):
         update_python.install_python("C:/software/PythonKBR", reinstall=True).wait()
         update_python.install_python("C:/software/Python3KBR", reinstall=True).wait()
     if "update_smks" in args:
