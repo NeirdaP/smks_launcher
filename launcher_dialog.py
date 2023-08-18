@@ -622,14 +622,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             else:
                 self._branch_choice.addItem(choice)
 
-        tags = self._fetch_tags()
-        for tag in tags:
-            if self._branch_choice.findText(tag) >= 0:
-                continue
-            if tag in icons:
-                self._branch_choice.addItem(QtGui.QIcon(icons[tag]), tag)
-            else:
-                self._branch_choice.addItem(tag)
+        # tags = self._fetch_tags()
+        # for tag in tags:
+        #     if self._branch_choice.findText(tag) >= 0:
+        #         continue
+        #     if tag in icons:
+        #         self._branch_choice.addItem(QtGui.QIcon(icons[tag]), tag)
+        #     else:
+        #         self._branch_choice.addItem(tag)
         self._lock_branches = False
 
     def apply_style(self, widget=None):
@@ -725,6 +725,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self.showMessage("Update Ended !")
 
     def update_smks_studio(self, end_callback=None):
+        self._fix_supa_url()
+
         repo_path = self.get_repo_path()
         process = updates.update_smks_studio(self._branch_choice.currentText(), repo_path)
 
@@ -817,6 +819,29 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def get_selected_branch(self):
         return updates.get_branches()[self._branch_choice.currentText()]
 
+    def _fix_supa_url(self):
+        import update_smks
+
+        repo_path = self.get_repo_path().replace('/', os.path.sep)
+        modules_path = os.path.join(repo_path, ".gitmodules")
+
+        if os.path.isfile(modules_path):
+            with open(modules_path, 'r') as fp:
+                modules_content = fp.read()
+
+            if ".local" in modules_content:
+                modules_content = modules_content.replace(".supamonks.local", ".supamonks.lan")
+                modules_content = modules_content.replace("supa-git/", "supa-git.supamonks.lan/")
+
+                with open(modules_path, 'w') as fp:
+                    fp.write(modules_content)
+
+                remote_process = subprocess.Popen(
+                    [update_smks.get_git(), "submodule", "sync"], cwd=repo_path,
+                    stdout=subprocess.PIPE
+                )
+                remote_process.wait()
+
     def check_n_run_smks_studio(self, return_code=None):
         global SUB_MODULES_ATTEMPTS
         import update_smks
@@ -829,6 +854,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
+
+        self._fix_supa_url()
 
         try:
             if SUB_MODULES_ATTEMPTS < 1:
@@ -853,7 +880,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 self._popup.popup("Need Update",
                                   "Some modules should be downloaded before running SMKS Studio")
 
-            QtCore.QTimer.singleShot(500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio))
+            QtCore.QTimer.singleShot(
+                500, functools.partial(self.update_smks_studio, self.check_n_run_smks_studio)
+            )
             return
 
         remote_process = subprocess.Popen(
@@ -861,7 +890,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             stdout=subprocess.PIPE
         )
         remote_process.wait()
-        if b'supamonks.local' not in remote_process.stdout.read():
+        if b'supamonks.local' in remote_process.stdout.read():
             try:
                 subprocess.check_call(
                     [update_smks.get_git(), "remote", "set-url", "origin", update_smks.SMKS_REPO_LINK],
@@ -904,7 +933,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     @classmethod
     def smks_configuration_from_preset(cls, preset_name, session_name="Supamonks"):
-        host = "192.168.1.215"
+        host = "supa-redis.supamonks.lan"
         port = "6379"
         cluster = "SMKS"
         session = session_name

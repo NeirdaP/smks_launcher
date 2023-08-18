@@ -1,5 +1,6 @@
 import functools
 import subprocess
+import sys
 import threading
 import time
 from queue import Queue, Empty
@@ -7,6 +8,16 @@ from queue import Queue, Empty
 from qtpy import QtCore
 
 _LOCK = False
+
+
+def default_subprocess_options():
+    popen_kwargs = dict()
+    if sys.platform == "win32":
+        # This hides the console window if pythonw.exe is used
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        popen_kwargs["startupinfo"] = startupinfo
+    return popen_kwargs
 
 
 class ProcessWatcher(QtCore.QObject):
@@ -306,6 +317,7 @@ class ProcessAgent(object):
             return
         if cls._processes_pools[process_agent.pool]:
             new_process = cls._processes_pools[process_agent.pool].pop(0)
+            new_process.kwargs.update(default_subprocess_options())
             end_callback = functools.partial(cls.process_end_callback, new_process, window)
             new_process.process = subprocess.Popen(new_process.command, **new_process.kwargs)
             new_process.watcher = new_process.__class__.watch_process(
@@ -324,6 +336,8 @@ class ProcessAgent(object):
             else:
                 self._processes_pools[self.pool].append(self)
                 return
+
+        self.kwargs.update(default_subprocess_options())
         self.process = subprocess.Popen(self.command, **self.kwargs)
         self.watcher = self.__class__.watch_process(
             self.process, end_callback=end_callback, window=window,

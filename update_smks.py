@@ -7,7 +7,7 @@ import utils
 
 GIT_EXE = 'git'
 GIT_CHECKED = False
-SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.local/smks/smks_studio.git"
+SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.lan/smks/smks_studio.git"
 SMKS_BACKUP_ZIP = r"I:\PIPE\smks_studio.zip"
 
 
@@ -64,6 +64,37 @@ def parse_command_line_args(args):
     )
 
 
+def default_subprocess_options():
+    popen_kwargs = dict()
+    if sys.platform == "win32":
+        # This hides the console window if pythonw.exe is used
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        popen_kwargs["startupinfo"] = startupinfo
+    return popen_kwargs
+
+
+def _fix_supa_url(repo_path):
+    modules_path = os.path.join(repo_path, ".gitmodules")
+
+    if os.path.isfile(modules_path):
+        with open(modules_path, 'r') as fp:
+            modules_content = fp.read()
+
+        if ".local" in modules_content:
+            modules_content = modules_content.replace(".supamonks.local", ".supamonks.lan")
+            modules_content = modules_content.replace("supa-git/", "supa-git.supamonks.lan/")
+
+            with open(modules_path, 'w') as fp:
+                fp.write(modules_content)
+
+            remote_process = subprocess.Popen(
+                [get_git(), "submodule", "sync"], cwd=repo_path,
+                stdout=subprocess.PIPE
+            )
+            remote_process.wait()
+
+
 if __name__ == '__main__':
     import sys
     import time
@@ -72,7 +103,7 @@ if __name__ == '__main__':
     repo_path = args['repo_path']
 
     try:
-        subprocess.check_call(["ping", "-n", "2", "supa-git"], shell=True)
+        subprocess.check_call(["ping", "-n", "2", "supa-git.supamonks.lan"], shell=True, **default_subprocess_options())
     except subprocess.CalledProcessError:
         print("ERROR: Cannot connect to supa-git")
         time.sleep(2)
@@ -92,11 +123,11 @@ if __name__ == '__main__':
 
     config_process1 = subprocess.Popen(
         [git, "config", "--global", "credential.helper"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **default_subprocess_options()
     )
     config_process2 = subprocess.Popen(
         [git, "config", "--system", "credential.helper"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **default_subprocess_options()
     )
 
     config_process1.wait()
@@ -111,7 +142,7 @@ if __name__ == '__main__':
         git, "config", "--global", "--unset", "http.sslCAInfo"
     ])
     subprocess.check_call([
-        git, "config", "--global", "http.https://supa-git.supamonks.local.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
+        git, "config", "--global", "http.https://supa-git.supamonks.lan.sslCAInfo", r"P:\DEV\SUPA-GIT.SUPAMONKS.download.crt"
     ])
     subprocess.check_call([
         git, "config", "--global", "http.sslBackend", r"openssl"
@@ -132,6 +163,7 @@ if __name__ == '__main__':
                 [git, "config", "--global", "credential.helper", original_credential]
             )
             raise
+
     branch = args['branch']
     try:
         subprocess.check_call([git, "checkout", branch], cwd=repo_path)
@@ -170,6 +202,7 @@ if __name__ == '__main__':
 
     if not success:
         raise RuntimeError("Update failed!")
+    _fix_supa_url(repo_path)
 
     success = False
     for i in range(2):

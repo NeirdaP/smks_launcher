@@ -1,7 +1,8 @@
 import os
+import subprocess
 import sys
 
-from process_utils import ProcessAgent
+from process_utils import ProcessAgent, default_subprocess_options
 
 
 def download_python(dst_python_dir, messager=None):
@@ -128,9 +129,9 @@ def install_python(python_dir, reinstall=False, messager=None, end_callback=None
         si = subprocess.STARTUPINFO()
         si.dwFlags = subprocess.CREATE_NEW_PROCESS_GROUP
     except (AttributeError, NameError):
-        process = subprocess.Popen(command_args)  # Not windows
+        process = subprocess.Popen(command_args, **default_subprocess_options())  # Not windows
     else:
-        process = subprocess.Popen(command_args, startupinfo=si)
+        process = subprocess.Popen(command_args, startupinfo=si, **default_subprocess_options())
     if end_callback:
         end_callback()
     return process
