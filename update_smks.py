@@ -173,7 +173,7 @@ if __name__ == '__main__':
         subprocess.check_call(
             [git, "config", "--global", "credential.helper", original_credential]
         )
-        exit(1)
+        raise RuntimeError("Cannot switch branch {}".format(branch))
     sys.stdout.flush()
     time.sleep(0.5)
 

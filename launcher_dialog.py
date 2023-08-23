@@ -25,6 +25,13 @@ from smks_news_feed import SmksNewsFeed
 INSTALL_DIR = r"C:\software"
 SUB_MODULES_ATTEMPTS = 0
 
+NO_QT_ENV = "maya_env"
+QT_ENV = "smks_env"
+
+CORE_ENV = "core_env"
+GUI_ENV = "gui_env"
+IMAGES_ENV = "images_env"
+
 
 class RequirementsDialog(QtWidgets.QDialog):
 
@@ -873,6 +880,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
 
+        time.sleep(2)
+
         self._fix_supa_url()
 
         try:
@@ -965,6 +974,53 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         return session, host, port, cluster, database, password, debug
 
+    def activate_env(self, activate_script, env_dict):
+        import site
+
+        bin_dir = os.path.abspath(os.path.join(activate_script, "..", ".."))
+        # strip away the bin part from the __file__, plus the path separator
+
+        # add the virtual environments libraries to the host python import mechanism
+        prev_length = len(sys.path)
+        path = os.path.realpath(os.path.join(bin_dir, "Lib", "site-packages"))
+        try:
+            site.addsitedir(path.decode("utf-8"))
+        except AttributeError:
+            site.addsitedir(path)
+
+        new_path = sys.path[prev_length:]
+        python_path = env_dict.get("PYTHONPATH", "").split(";")
+        python_path += new_path
+        env_dict["PYTHONPATH"] = os.pathsep.join(python_path)
+
+        sys.path[:] = sys.path[:prev_length]
+
+    def install_environment(self, python_dir, env_name, env_dict):
+        """
+        Activate the virtualenv corresponding to env_name
+        at supamonks, we have installed two virtualenv
+        "smks_env" and "maya_env" which make the current python session able to
+        run kabaret/smks_studio. The first also install necessary packages to use Qt.
+        :param python_dir: the directory of the python executable, normally, the
+        virtualenvs are installed in the same directory
+        :param [QT_ENV|NO_QT_ENV] env_name: the virtualenv name to use
+        """
+
+        virtual_env_path = os.path.join(python_dir, env_name, "Scripts")
+        if not os.path.isdir(virtual_env_path):
+            raise RuntimeError("Cannot find python environment for {}".format(virtual_env_path))
+        activate_this = os.path.join(virtual_env_path, "activate_this.py")
+
+        self.activate_env(activate_this, env_dict)
+
+    def install_standalone_python_environment(self, python_dir, env_dict):
+        try:
+            self.install_environment(python_dir, CORE_ENV, env_dict)
+            self.install_environment(python_dir, IMAGES_ENV, env_dict)
+            self.install_environment(python_dir, GUI_ENV, env_dict)
+        except RuntimeError as e:
+            print("WARNING:", e)
+
     def run_smks_studio(self, *args):  # *args for callback
         import os
 
@@ -975,22 +1031,31 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._run_smks_studio_button.setEnabled(False)
             return
 
-        python_path = os.path.join(self.get_repo_path().replace('/', '\\'), "smks_studio_home", "python")
+        smks_path = self.get_repo_path()
 
         smks_studio_env = os.environ.copy()
-        smks_path = self.get_repo_path()
-        smks_studio_env["SMKS_STUDIO_ROOT"] = str(smks_path)
+        smks_studio_env["PYTHONPATH"] = os.path.join(smks_path, "smks_studio_home", "python")
+
+        smks_studio_env["SMKS_STUDIO_ROOT"] = smks_path
 
         py2_path, py3_path = self.get_python_paths()
         smks_studio_env["PYTHONDIR"] = py3_path.replace('/', '\\')
         smks_studio_env["PYTHON2DIR"] = py2_path.replace('/', '\\')
         smks_studio_env["PYTHON3DIR"] = py3_path.replace('/', '\\')
 
+        self.install_standalone_python_environment(python_dir=py3_path, env_dict=smks_studio_env)
+
         config = self.config_choice.currentText()
         session_parameters = list(self.smks_configuration_from_preset(config, self._branch_choice.currentText()))
         session_parameters[-1] = self._debug_option.isChecked()
-        smks_studio_env["SMKS_STUDIO_CMD"] = "import smks_studio.gui.app as smks_gui;" \
-                                 "smks_gui.run_session(*{})".format(repr(session_parameters))
+        core_path = os.path.realpath(os.path.join(py3_path, "core_env", "Lib", "site-packages"))
+
+        cmd = "import site; site.addsitedir('{}');" \
+              "import smks_studio.gui.app as smks_gui;" \
+              "smks_gui.run_session(*{})".format(
+            core_path, repr(session_parameters)
+        )
+        smks_studio_env["SMKS_STUDIO_CMD"] = cmd
 
         subprocess.Popen(['cmd', '/C', 'setx', 'PYTHONDIR', py3_path.replace('/', '\\')], shell=True)
         subprocess.Popen(['cmd', '/C', 'setx', 'PYTHON2DIR', py2_path.replace('/', '\\')], shell=True)
@@ -1004,8 +1069,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._hide_loading(self._python_update_button)
         QtCore.QTimer.singleShot(4000, self._handle_smks_runned)
 
-        self._smks_process = subprocess.Popen([os.path.join(os.path.dirname(__file__), "Run_smks_studio.bat")],
-                                              env=smks_studio_env, shell=True, cwd=user_path)
+        self._smks_process = subprocess.Popen(
+            [os.path.join(py3_path, "python"), "-c", cmd],
+            env=smks_studio_env, cwd=user_path
+        )
 
     @classmethod
     def open_supa_network(cls):
