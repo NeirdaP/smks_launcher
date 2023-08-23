@@ -529,6 +529,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._threads.append(thread)
             thread.start()
         else:
+            for item in os.listdir(python3_path):
+                if item.endswith("_env"):
+                    shutil.rmtree(os.path.join(python3_path, item))
+
             processes = update_python.make_python_update_process(
                 python3_path, messager=self.showMessage,
                 requirements=requirements_path, end_callback=end_callback or self._handle_update_end
@@ -879,8 +883,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         repo_path = self.get_repo_path().replace('/', os.path.sep)
         python_path = os.path.join(repo_path, "smks_studio_home", "python")
         third_party = os.path.join(python_path, "third_party")
-
-        time.sleep(2)
 
         self._fix_supa_url()
 
