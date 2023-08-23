@@ -270,7 +270,7 @@ class ProcessAgent(object):
         for thread in cls._threads:
             try:
                 thread.join()
-            except RuntimeError:
+            except (RuntimeError, AttributeError):
                 pass
         cls._processes = []
         cls._threads = []
