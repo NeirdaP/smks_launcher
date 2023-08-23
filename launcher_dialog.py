@@ -529,9 +529,12 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._threads.append(thread)
             thread.start()
         else:
-            for item in os.listdir(python3_path):
-                if item.endswith("_env"):
-                    shutil.move(os.path.join(python3_path, item), tempfile.gettempdir())
+            # tmp_dir = tempfile.gettempdir()
+            # for item in os.listdir(python3_path):
+            #     if item.endswith("_env"):
+            #         if os.path.exists(os.path.join(tmp_dir, item)):
+            #             shutil.rmtree(os.path.join(tmp_dir, item))
+            #         shutil.move(os.path.join(python3_path, item), tmp_dir)
 
             processes = update_python.make_python_update_process(
                 python3_path, messager=self.showMessage,
