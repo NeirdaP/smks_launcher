@@ -261,14 +261,15 @@ class ProcessAgent(object):
         self.process = None
         self.watcher = None
         self._id = self.__class__._count
+        self.__class__._count += 1
 
     @classmethod
     def wait_for_remaining_processes(cls):
         for process in cls._processes:
             process.wait()
-        for process in cls._threads:
+        for thread in cls._threads:
             try:
-                process.join()
+                thread.join()
             except RuntimeError:
                 pass
         cls._processes = []
@@ -314,7 +315,7 @@ class ProcessAgent(object):
         try:
             cls._processes_pools[process_agent.pool].remove(process_agent)
         except ValueError:
-            return
+            pass
         if cls._processes_pools[process_agent.pool]:
             new_process = cls._processes_pools[process_agent.pool].pop(0)
             new_process.kwargs.update(default_subprocess_options())
@@ -329,12 +330,12 @@ class ProcessAgent(object):
         if end_callback:
             self.end_callback = end_callback
         if self.pool:
-            current_pool =  self._processes_pools.get(self.pool)
+            current_pool = self.__class__._processes_pools.get(self.pool)
             if not current_pool:
-                self._processes_pools[self.pool] = [self]
+                self.__class__._processes_pools[self.pool] = [self]
                 end_callback = functools.partial(self.process_end_callback, self, window)
             else:
-                self._processes_pools[self.pool].append(self)
+                self.__class__._processes_pools[self.pool].append(self)
                 return
 
         self.kwargs.update(default_subprocess_options())

@@ -1,6 +1,8 @@
 import os
+import shutil
 import subprocess
 import sys
+import time
 
 from process_utils import ProcessAgent, default_subprocess_options
 
@@ -23,9 +25,12 @@ def download_python(dst_python_dir, messager=None):
                 messager("COPYING %s -> %s" % (python_dir + '.zip', dst_python_dir + '.zip'))
             shutil.copyfile(python_dir + '.zip', dst_python_dir + '.zip')
             with zipfile.ZipFile(dst_python_dir + '.zip') as pzip:
-                pzip.extractall(os.path.dirname(dst_python_dir))
-                result = os.path.join(os.path.dirname(dst_python_dir), pzip.filelist[0].filename[:-1])
-            shutil.move(result, dst_python_dir)
+                pzip.extractall(dst_python_dir)
+                result = pzip.filelist[0].filename[:-1]
+                if result == os.path.dirname(dst_python_dir):
+                    root = os.path.join(dst_python_dir, result)
+                    for item in os.listdir(root):
+                        shutil.move(os.path.join(root, item), dst_python_dir)
     else:
         def copy():
             if messager:
@@ -51,7 +56,7 @@ def parse_requirements(repo_root, requirements_file):
 
 
 def make_python_update_process(
-        python_dir, requirements=None, end_callback=None, messager=None
+    python_dir, requirements=None, end_callback=None, messager=None
 ):
     import subprocess
 
@@ -76,23 +81,29 @@ def make_python_update_process(
 
     processes = []
     for requirement in requirements:
-        if os.path.isfile(requirement):
-            env_name = os.path.basename(requirement)
-            env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
+        if "_dev" in requirement or "_standalone" in requirement:
+            continue
+        env_name = os.path.basename(requirement)
+        env_name = "{}_env".format(env_name[len("requirements_"):].rsplit(".", 1)[0])
 
-            process = ProcessAgent(
-                [r".\PythonSetupEnv.bat", env_name, requirement],
-                dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
-                watch_timeout=7, pool=1
-            )
-            processes.append(process)
+        process = ProcessAgent(
+            [r".\PythonSetupEnv.bat", env_name, requirement],
+            dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
+            watch_timeout=7, pool=1
+        )
+        processes.append(process)
 
-    process = ProcessAgent(
-        [r".\PythonSetup.bat"],
-        dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
-        end_callback=end_callback, pool=1
-    )
-    processes.append(process)
+    # process = ProcessAgent(
+    #     [r".\PythonSetup.bat"],
+    #     dict(env=update_env, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT),
+    #     end_callback=end_callback, pool=1
+    # )
+    # processes.append(process)
+    # shutil.rmtree(os.path.join(python_dir, "smks_env"), ignore_errors=True)
+    # shutil.rmtree(os.path.join(python_dir, "maya_env"), ignore_errors=True)
+
+    if processes:
+        processes[-1].end_callback = end_callback
     return processes
 
 
@@ -105,6 +116,7 @@ def install_python(python_dir, reinstall=False, messager=None, end_callback=None
     destination_path = os.path.join(os.path.dirname(python_dir), '_smks_tmp_', os.path.basename(python_dir))
     if os.path.isdir(destination_path):
         shutil.rmtree(destination_path)
+    os.makedirs(python_dir, exist_ok=True)
     download_python(destination_path, messager=messager)
 
     command = 'import time; import os; import shutil; import subprocess;'
@@ -131,7 +143,9 @@ def install_python(python_dir, reinstall=False, messager=None, end_callback=None
     except (AttributeError, NameError):
         process = subprocess.Popen(command_args, **default_subprocess_options())  # Not windows
     else:
-        process = subprocess.Popen(command_args, startupinfo=si, **default_subprocess_options())
+        args = default_subprocess_options()
+        si.dwFlags = si.dwFlags | args.get("startupinfo", subprocess.STARTUPINFO()).dwFlags
+        process = subprocess.Popen(command_args, startupinfo=si)
     if end_callback:
         end_callback()
     return process

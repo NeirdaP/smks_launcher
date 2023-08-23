@@ -405,7 +405,7 @@ class SmksNewsFeed(QtWidgets.QWidget):
 
         self._manage_news_action = QtWidgets.QAction("Manage...", self)
         
-        self._news_timer.timeout.connect(self.update_current_news)
+        # self._news_timer.timeout.connect(self.update_current_news)
         self._update_timer.timeout.connect(self._player_update)
         self._manage_news_action.triggered.connect(self.open_news_manager)
         self._left_button.clicked.connect(self._switch_news_left)
@@ -643,7 +643,7 @@ class SmksNewsFeed(QtWidgets.QWidget):
                     self._media_player.position() >= self._media_player.duration()-180:
                 self._media_player.stop()
                 self._media_player.setPosition(1)
-                self._media_player.play()
+                # self._media_player.play()
         else:
             if self.isVisible() and self.window().isActiveWindow():
                 self.start()

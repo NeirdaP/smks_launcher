@@ -114,6 +114,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._tags = []
         self._tags_process = None
 
+        self._threads = []
+
         self.python2_path_preset = dict(
             LOCAL='C:/software/PythonKBR',
             SERVER='I:/bin/PythonKBR',
@@ -382,6 +384,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
     def showMessage(self, message):
         if self.thread() != QtCore.QThread.currentThread():
             print("WARNING, not the correct thread {}".format(QtCore.QThread.currentThread()))
+            return
         print(message)
         message_low = message.lower()
         if 'ended !' in message_low:
@@ -417,13 +420,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self.toggle_python_group()
 
         self._run_smks_studio_button.setEnabled(False)
+        self._display_loading(self._python_install_button)
 
         for item in os.listdir(INSTALL_DIR):
             if item.startswith("smks_studio"):
                 repo_path = os.path.join(INSTALL_DIR, item)
                 thread = threading.Thread(
                     target=lambda _path=repo_path:
-                        self.del_repo(repo_path) and self._install_python()
+                        self.del_repo(repo_path) or self._install_python()
                 )
                 thread.start()
                 ProcessAgent.register_thread(thread)
@@ -433,8 +437,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
             if not self._handle_install_end:
                 return
             return self._handle_install_end()
-
-        self._display_loading(self._python_install_button)
 
         python2_path, python3_path = self.get_python_paths()
         thread = Thread(target=update_python.install_python, args=[python2_path],
@@ -476,11 +478,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return
 
         python2_path, python3_path = self.get_python_paths()
+        # disable python2 for now
+        # QtCore.QTimer.singleShot(
+        #     100, functools.partial(self._update_python2, python2_path, requirements_path)
+        # )
         QtCore.QTimer.singleShot(
-            100, functools.partial(self._update_python2, python2_path, requirements_path)
-        )
-        QtCore.QTimer.singleShot(
-            2000, functools.partial(self._update_python3, python3_path, requirements_path, end_callback)
+            800, functools.partial(
+                self._update_python3, python3_path, requirements_path, end_callback
+            )
         )
 
     def _update_python2(self, python2_path, requirements_path, end_callback=None):
@@ -506,11 +511,14 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         if not os.path.isdir(python3_path):
             reboot = python3_path.lower() in sys.executable.replace('\\', '/').lower()
-            thread = Thread(target=update_python.install_python, args=[python3_path],
-                            kwargs=dict(reinstall=reboot, messager=self.showMessage,
-                                                  end_callback=end_callback or (self.exit if reboot else self._handle_update_end),
-                                                  reboot_python=os.path.join(python3_path,
-                                                                             "python") if reboot else None))
+            thread = Thread(
+                target=update_python.install_python, args=[python3_path],
+                kwargs=dict(
+                    reinstall=reboot, messager=self.showMessage,
+                    end_callback=end_callback or (self.exit if reboot else self._handle_update_end),
+                    reboot_python=os.path.join(python3_path, "python") if reboot else None
+                )
+            )
             self._threads.append(thread)
             thread.start()
         else:
@@ -692,6 +700,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
                 os.unlink(file)
             except Exception as e:
                 print(e)
+                trash_folder = os.path.join(tempfile.gettempdir(), ".trash")
+                os.makedirs(trash_folder, exist_ok=True)
+                shutil.move(file, os.path.join(trash_folder, os.path.basename(file)))
 
     def del_repo(self, repo_path):
         import update_smks
@@ -702,7 +713,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
             shutil.rmtree(repo_path, onerror=self._force_remove_file)
         print("Folder {} removed !".format(repo_path))
         self._hide_loading(self._run_smks_studio_button)
-        self.showMessage("ERROR when running, please re-run")
 
     def _handle_smks_update_end(self, return_code=0):
         self._hide_loading(self._smks_update_button)
@@ -715,7 +725,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
             thread.start()
             ProcessAgent.register_thread(thread)
             time.sleep(1)
-            raise RuntimeError("Cannot update smks_studio ! Try it again or contact SAV")
+            self.showMessage("ERROR when running, please re-run")
+            return
         self.update_branches()
 
     def _handle_install_end(self):
