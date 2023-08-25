@@ -157,6 +157,7 @@ if __name__ == '__main__':
             subprocess.check_output(
                 [git, "clone", "-q", SMKS_REPO_LINK, repo_path],
             )
+            subprocess.check_call([git, "config", "--global", "--add", "safe.directory", repo_path])
         except subprocess.CalledProcessError as e:
             print(e, e.cmd)
             subprocess.check_call(
@@ -166,6 +167,7 @@ if __name__ == '__main__':
 
     branch = args['branch']
     try:
+        subprocess.check_call([git, "config", "--global", "--add", "safe.directory", repo_path])
         subprocess.check_call([git, "checkout", branch], cwd=repo_path)
     except subprocess.CalledProcessError:
         import traceback
