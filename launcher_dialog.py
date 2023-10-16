@@ -97,7 +97,7 @@ class Popup(QtWidgets.QDialog):
 # TODO make configuration window
 class LauncherDialog(QtWidgets.QMainWindow):
 
-    SUPA_NETWORK = "https://sites.google.com/supamonks.com/supageneral?pli=1&authuser=1"
+    SUPA_NETWORK = "https://supadocs.supamonks.com/"
     SUPA_NETWORK_DOC = "https://sites.google.com/supamonks.com/workflows/accueil"
     SUPA_DISCORD = "https://discord.gg/armdDJP"
     SUPAMONKS_LETTER = "https://sites.google.com/supamonks.com/supanewsletter/accueil"
