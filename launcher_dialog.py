@@ -261,7 +261,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         main_layout.addWidget(self.python_toggle, 1)
         main_layout.addWidget(self.python_group, 1)
         main_layout.addStretch()
-        self.hide = False
+        self.extra_hidden = False
         main_layout.addWidget(self._extra_grp)
         main_layout.addStretch()
 
@@ -375,8 +375,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self.settings.setValue("_branch_choice", self._branch_choice.currentText())
 
     def toggle_extra(self):
-        self.hide = not self.hide
-        if self.hide:
+        self.extra_hidden = not self.extra_hidden
+        if self.extra_hidden:
             icon = QtGui.QIcon("images/sign-down.png")
             pix = icon.pixmap(32, 32)
             icon = QtGui.QIcon(pix.transformed(QtGui.QTransform().rotate(-90.0)))
