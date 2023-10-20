@@ -1,8 +1,6 @@
 import os
 
 BRANCHES = dict(
-    OFFICIAL="master",
-    BETA="dev",
 )
 
 
@@ -17,7 +15,6 @@ def get_branches():
             branches.update(json.load(fp))
     else:
         logging.getLogger("smks_launcher").warning("There is no branches.json")
-        branches['OFFICIAL'] = 'master'
 
     return branches
 
