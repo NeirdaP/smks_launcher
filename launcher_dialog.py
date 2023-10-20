@@ -97,7 +97,7 @@ class Popup(QtWidgets.QDialog):
 # TODO make configuration window
 class LauncherDialog(QtWidgets.QMainWindow):
 
-    SUPA_NETWORK = "https://sites.google.com/supamonks.com/supageneral?pli=1&authuser=1"
+    SUPA_NETWORK = "https://supadocs.supamonks.com/"
     SUPA_NETWORK_DOC = "https://sites.google.com/supamonks.com/workflows/accueil"
     SUPA_DISCORD = "https://discord.gg/armdDJP"
     SUPAMONKS_LETTER = "https://sites.google.com/supamonks.com/supanewsletter/accueil"
@@ -175,7 +175,20 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._news_widget.addWidget(get_today_hitnd())
         self._news_widget.setMinimumHeight(250)
 
-        python_group = QtWidgets.QGroupBox("Python")
+        self.python_toggle = QtWidgets.QWidget()
+        self.python_toggle.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.python_group = QtWidgets.QWidget()
+        self.python_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+
+        self._toggle_python_button = QtWidgets.QPushButton()
+        self._toggle_python_button.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: 0px;")
+        self._toggle_python_button.setFlat(True)
+        self._python_label = QtWidgets.QLabel("Python")
+
+        _extra_grp_layout = QtWidgets.QHBoxLayout(self.python_toggle)
+        _extra_grp_layout.addWidget(self._toggle_python_button, 1)
+        _extra_grp_layout.addWidget(self._python_label, 75)
+
         self._python_group_toggle_button = QtWidgets.QPushButton()
         self._python_path_preset_choice = QtWidgets.QComboBox()
         self._python2_path_edit = PathEditor(label="Python2 (Maya/Nuke)")
@@ -190,13 +203,23 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._requirements_preset = QtWidgets.QComboBox()
         self._requirements_path_edit = PathEditor(placeholder="Requirements path", mode='r')
 
-        update_group = QtWidgets.QGroupBox("Update SMKS Studio")
+        self.update_group = QtWidgets.QGroupBox("Update SMKS Studio")
+        self.update_group.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
         self._branch_choice = QtWidgets.QComboBox()
         self._repo_path_edit = PathEditor()
         self._smks_update_button = QtWidgets.QPushButton("Update")
         self._smks_update_button.setObjectName("update_smks_studio")
         self._loading_gif = QtGui.QMovie("./images/loading.gif")
         self._loading_gif.frameChanged.connect(self._update_button_loading_icon)
+
+        self._toggle_extra_button = QtWidgets.QPushButton()
+        self._toggle_extra_button.setStyleSheet("background-color: rgba(255, 255, 255, 0); border: 0px;")
+        self._toggle_extra_button.setFlat(True)
+        self._extra_label = QtWidgets.QLabel("News")
+        self._extra_grp = QtWidgets.QWidget()
+        _extra_grp_layout = QtWidgets.QHBoxLayout(self._extra_grp)
+        _extra_grp_layout.addWidget(self._toggle_extra_button,1)
+        _extra_grp_layout.addWidget(self._extra_label,75)
 
         self.config_choice = QtWidgets.QComboBox()
         self._debug_option = QtWidgets.QCheckBox("debug")
@@ -214,7 +237,8 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._python_update_button.clicked.connect(self._update_python)
         self._python_install_button.clicked.connect(self._install_python)
 
-        self._python_group_toggle_button.clicked.connect(self.toggle_python_group)
+        self._toggle_python_button.clicked.connect(self.toggle_python_group)
+        self._toggle_extra_button.clicked.connect(self.toggle_extra)
         self._python_path_preset_choice.currentIndexChanged.connect(self.handle_path_preset)
         self._requirements_preset.currentIndexChanged.connect(self.handle_requirements_path_preset)
         self._smks_update_button.clicked.connect(self.update_smks_studio)
@@ -226,20 +250,27 @@ class LauncherDialog(QtWidgets.QMainWindow):
         )
 
         main_layout = QtWidgets.QVBoxLayout(self.main_widget)
-        python_layout = QtWidgets.QVBoxLayout(python_group)
+        python_layout = QtWidgets.QVBoxLayout(self.python_group)
         python_path_layout = QtWidgets.QVBoxLayout()
         requirements_layout = QtWidgets.QHBoxLayout()
         python_buttons_layout = QtWidgets.QHBoxLayout()
-        update_layout = QtWidgets.QHBoxLayout(update_group)
+        update_layout = QtWidgets.QHBoxLayout(self.update_group)
         runs_layout = QtWidgets.QHBoxLayout()
 
-        # main_layout.addLayout(actions_layout, 1)
-        main_layout.addWidget(python_group, 1)
+        main_layout.addWidget(self.update_group, 1)
+        main_layout.addWidget(self.python_toggle, 1)
+        main_layout.addWidget(self.python_group, 1)
         main_layout.addStretch()
+        self.extra_hidden = False
+        main_layout.addWidget(self._extra_grp)
+        main_layout.addStretch()
+
         main_layout.addWidget(self._news_choice_buttons, 1)
         main_layout.addWidget(self._news_widget, 5)
-        main_layout.addWidget(SmksNewsFeed(), 2)
-        main_layout.addWidget(update_group, 1)
+        self.news_feed = SmksNewsFeed()
+
+
+        main_layout.addWidget(self.news_feed, 2)
         main_layout.addLayout(runs_layout, 2)
 
         python_layout.addWidget(self._python_path_preset_choice)
@@ -247,7 +278,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         python_layout.addLayout(requirements_layout)
         python_layout.addWidget(self._requirements_path_edit)
         python_layout.addLayout(python_buttons_layout)
-        python_layout.addWidget(self._python_group_toggle_button)
+
         requirements_layout.addWidget(self._requirements_label, 2)
         requirements_layout.addWidget(self._requirements_preset, 8)
         python_path_layout.addWidget(self._python2_path_edit)
@@ -278,23 +309,21 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._run_smks_network_button.setIcon(QtGui.QIcon("images/supa_network.png"))
 
         # https://openapplibrary.org/dev-tutorials/qt-icon-themes
-        self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-up.png"))
+        self._toggle_python_button.setIcon(QtGui.QIcon("images/sign-up.png"))
 
         # ### SIZES ###
-        desktop = QtWidgets.QApplication.desktop()
-        desktop = desktop.screenGeometry(desktop.screenNumber())
+        self.desktop = QtWidgets.QApplication.desktop()
+        self.desktop = self.desktop.screenGeometry(self.desktop.screenNumber())
 
-        self._python2_path_edit._label.setMinimumWidth(desktop.width()*0.05)
-        self._python3_path_edit._label.setMinimumWidth(desktop.width()*0.05)
-        # self._requirements_path._label.setMinimumWidth(desktop.width()*0.05)
-        self._run_smks_studio_button.setMinimumHeight(desktop.height()*0.1)
-        self._run_smks_letter_button.setMinimumHeight(desktop.height()*0.1)
-        self._run_smks_network_button.setMinimumHeight(desktop.height()*0.1)
-        self._run_smks_studio_button.setIconSize(QtCore.QSize(desktop.height()*0.05, desktop.height()*0.05))
-        self._run_smks_letter_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
-        self._run_smks_network_button.setIconSize(QtCore.QSize(desktop.height()*0.03, desktop.height()*0.03))
-        self._smks_update_button.setMinimumWidth(desktop.height() * 0.09)
-        self._python_group_toggle_button.setMaximumHeight(20)
+        self._python2_path_edit._label.setMinimumWidth(self.desktop.width()*0.05)
+        self._python3_path_edit._label.setMinimumWidth(self.desktop.width()*0.05)
+        self._run_smks_studio_button.setMinimumHeight(self.desktop.height()*0.1)
+        self._run_smks_letter_button.setMinimumHeight(self.desktop.height()*0.1)
+        self._run_smks_network_button.setMinimumHeight(self.desktop.height()*0.1)
+        self._run_smks_studio_button.setIconSize(QtCore.QSize(self.desktop.height()*0.05, self.desktop.height()*0.05))
+        self._run_smks_letter_button.setIconSize(QtCore.QSize(self.desktop.height()*0.03, self.desktop.height()*0.03))
+        self._run_smks_network_button.setIconSize(QtCore.QSize(self.desktop.height()*0.03, self.desktop.height()*0.03))
+        self._smks_update_button.setMinimumWidth(self.desktop.height() * 0.09)
 
         # ### STYLE ###
         self.apply_style()
@@ -336,23 +365,58 @@ class LauncherDialog(QtWidgets.QMainWindow):
         if "update_smks" in QtWidgets.QApplication.instance().arguments():
             QtCore.QTimer.singleShot(1000, self.update_smks_studio)
 
-        self.setMinimumSize(int(desktop.width()*0.36), int(desktop.height()*0.7))
-        self.setMaximumSize(int(desktop.width()*0.5), int(desktop.height()*0.9))
-        self.resize(int(desktop.width()*0.4), int(desktop.height()*0.8))
+        self.setMinimumSize(int(self.desktop.width()*0.36), int(self.desktop.height()*0.8))
+        self.resize(int(self.desktop.width()*0.4), int(self.desktop.height()*0.8))
+
+        self.toggle_extra()
 
     def _handle_branch_changed(self):
         self.update_branches()
         self.settings.setValue("_branch_choice", self._branch_choice.currentText())
 
+    def toggle_extra(self):
+        self.extra_hidden = not self.extra_hidden
+        if self.extra_hidden:
+            icon = QtGui.QIcon("images/sign-down.png")
+            pix = icon.pixmap(32, 32)
+            icon = QtGui.QIcon(pix.transformed(QtGui.QTransform().rotate(-90.0)))
+            self._toggle_extra_button.setIcon(icon)
+            self.news_feed.setHidden(True)
+            self.update_group.setHidden(False)
+            self._news_widget.setHidden(True)
+            self._news_choice_buttons.setHidden(True)
+            self.setMinimumSize(int(self.desktop.width() * 0.4), 0)
+            self.resize(int(self.desktop.width()*0.4), 0)
+
+        else:
+            icon = QtGui.QIcon("images/sign-down.png")
+            self._toggle_extra_button.setIcon(icon)
+
+            self.news_feed.setHidden(True)
+            self.update_group.setHidden(False)
+            self._news_widget.setHidden(False)
+            self._news_choice_buttons.setHidden(False)
+            self.setMinimumSize(int(self.desktop.width() * 0.36), int(self.desktop.height() * 0.75))
+            self.resize(int(self.desktop.width()*0.4), int(self.desktop.height()*0.55))
+
     def toggle_python_group(self):
         hide = not self._python_path_preset_choice.isHidden()
         if hide:
-            self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-down.png"))
+            icon = QtGui.QIcon("images/sign-down.png")
+            pix = icon.pixmap(32, 32)
+            icon = QtGui.QIcon(pix.transformed(QtGui.QTransform().rotate(-90.0)))
+            self._toggle_python_button.setIcon(icon)
+            self.setMinimumSize(int(self.desktop.width() * 0.4), 0)
+            self.resize(int(self.desktop.width() * 0.4), 0)
         else:
-            self._python_group_toggle_button.setIcon(QtGui.QIcon("images/sign-up.png"))
+            icon = QtGui.QIcon("images/sign-down.png")
+            self._toggle_python_button.setIcon(icon)
             self.handle_python_path_preset()
             self.handle_requirements_path_preset()
+            self.resize(int(self.desktop.width() * 0.4), int(self.desktop.height() * 0.4))
+            self.adjustSize()
 
+        self.python_group.setHidden(hide)
         self._python_path_preset_choice.setHidden(hide)
         self._python_install_button.setHidden(hide)
         self._python_update_button.setHidden(hide)
