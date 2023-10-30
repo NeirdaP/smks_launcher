@@ -8,7 +8,7 @@ import utils
 GIT_EXE = 'git'
 GIT_CHECKED = False
 SMKS_REPO_LINK = "http://supamonks:supamonk09,@supa-git.supamonks.lan/smks/smks_studio.git"
-SMKS_BACKUP_ZIP = r"I:\PIPE\smks_studio.zip"
+SMKS_BACKUP_ZIP = r""  # no more backup zip
 
 
 def get_git():
@@ -29,8 +29,8 @@ def get_git():
                 os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Git\bin"
                 GIT_EXE = r"C:\Program Files\Git\bin\git"
             else:
-                os.environ["PATH"] = os.environ["PATH"] + r";I:\bin\Git\PortableGit\bin"
-                GIT_EXE = r"I:\bin\Git\PortableGit\bin\git"
+                os.environ["PATH"] = os.environ["PATH"] + r";\\supafiles.isi01.supamonks.lan\IT\\Git\PortableGit\bin"
+                GIT_EXE = r"\\supafiles.isi01.supamonks.lan\IT\\Git\PortableGit\bin\git"
         except subprocess.CalledProcessError:
             pass
         GIT_CHECKED = True

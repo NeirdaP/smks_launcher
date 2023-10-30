@@ -125,12 +125,12 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
         self.python2_path_preset = dict(
             LOCAL='C:/software/PythonKBR',
-            SERVER='I:/bin/PythonKBR',
+            SERVER='',
             CUSTOM=None,
         )
         self.python3_path_preset = dict(
             LOCAL='C:/software/Python3KBR',
-            SERVER='I:/bin/Python3KBR',
+            SERVER='',
             CUSTOM=None,
         )
 

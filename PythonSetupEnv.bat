@@ -1,5 +1,4 @@
 if '%SMKS_STUDIO_ROOT%'=='' (set SMKS_STUDIO_ROOT=P:\DEV\dev\smks_studio)
-if '%PYTHONDIR%'=='' (set PYTHONDIR=I:\bin\Python3KBR)
 
 cd /D %PYTHONDIR%
 
@@ -11,7 +10,7 @@ echo Update %~1
 pushd %PYTHONDIR%\%~1
 cd /D %PYTHONDIR%\%~1
 call Scripts\activate.bat
-python -m pip install --no-index --find-links="I:\python_packages\dists" -U -r %~2
+python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" -U -r %~2
 
 if %ErrorLevel% equ 1 (
     echo ERROR: INSTALL FAILED

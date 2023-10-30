@@ -3,7 +3,6 @@ echo --- PYTHON SETUP ----
 echo ---------------------
 
 if '%SMKS_STUDIO_ROOT%'=='' (set SMKS_STUDIO_ROOT=P:\DEV\dev\smks_studio)
-if '%PYTHONDIR%'=='' (set PYTHONDIR=I:\bin\Python3KBR)
 
 cd /D %PYTHONDIR%
 
@@ -16,8 +15,8 @@ echo Update Smks Env
 pushd %PYTHONDIR%\smks_env
 cd /D %PYTHONDIR%\smks_env
 call Scripts\activate.bat
-python -m pip install --no-index --find-links="I:\python_packages\dists" kabaret
-python -m pip install --no-index --find-links="I:\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
+python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" kabaret
+python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
 if %ErrorLevel% equ 1 (
     echo ERROR: INSTALL FAILED
     exit 1
@@ -27,7 +26,7 @@ echo %PYTHONDIR%|find "3" >nul
 if %ErrorLevel% equ 1 (
     echo "Python 2 ?"
 ) else (
-    python -m pip install --no-index --find-links="I:\python_packages\dists" PySide2==5.15.0
+    python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" PySide2==5.15.0
 )
 
 call Scripts\deactivate.bat
@@ -39,8 +38,8 @@ echo Update Maya Env
 pushd %PYTHONDIR%\maya_env
 cd /D %PYTHONDIR%\maya_env
 call Scripts\activate.bat
-python -m pip install --no-index --find-links="I:\python_packages\dists" kabaret
-python -m pip install --no-index --find-links="I:\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
+python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" kabaret
+python -m pip install --no-index --find-links="R:\third_party\python_packages\dists" -U -r %SMKS_STUDIO_ROOT%\requirements.txt
 
 if %ErrorLevel% equ 1 (
     echo ERROR: INSTALL FAILED

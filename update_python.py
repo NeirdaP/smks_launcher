@@ -2,22 +2,26 @@ import os
 import shutil
 import subprocess
 import sys
+import main
 import time
+
 
 from process_utils import ProcessAgent, default_subprocess_options
 
 
 def download_python(dst_python_dir, messager=None):
     import zipfile
-    import shutil
+
+    print("This function is deprecated, Please ask IT to deploy python")
+    return
 
     try:
         os.makedirs(os.path.dirname(dst_python_dir))
     except OSError:
         pass
-    python_dir = os.path.join(r'I:\bin', os.path.basename(dst_python_dir))
+    python_dir = os.path.join(r'', os.path.basename(dst_python_dir))
     if not os.path.isdir(python_dir):
-        python_dir = os.path.join(r'I:\bin\Python3KBR')
+        python_dir = os.path.join(r'Python3KBR')
 
     if zipfile.is_zipfile(python_dir + '.zip'):
         def copy():
@@ -108,10 +112,8 @@ def make_python_update_process(
 
 
 def install_python(python_dir, reinstall=False, messager=None, end_callback=None, reboot_python=None):
-    import subprocess
-    import main
-    import time
-    import shutil
+    print("This function is deprecated, Please ask IT to deploy python")
+    return
 
     destination_path = os.path.join(os.path.dirname(python_dir), '_smks_tmp_', os.path.basename(python_dir))
     if os.path.isdir(destination_path):
