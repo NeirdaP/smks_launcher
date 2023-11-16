@@ -1029,11 +1029,12 @@ class LauncherDialog(QtWidgets.QMainWindow):
 
     @classmethod
     def smks_configuration_from_preset(cls, preset_name, session_name="Supamonks"):
-        host = "supa-redis.supamonks.lan"
+        host = "BDD_redis.supamonks.lan"
         port = "6379"
         cluster = "SMKS"
         session = session_name
-        password = None
+        login = ""
+        password = "Lividly=Shimmy9=Skincare"
         database = '0'
         debug = False
 
@@ -1041,7 +1042,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             debug = True
             session = "TEST_BETA"
 
-        return session, host, port, cluster, database, password, debug
+        return session, host, port, cluster, database, login, password, debug
 
     def activate_env(self, activate_script, env_dict):
         import site
@@ -1113,7 +1114,6 @@ class LauncherDialog(QtWidgets.QMainWindow):
         smks_studio_env["PYTHON3DIR"] = py3_path.replace('/', '\\')
 
         self.install_standalone_python_environment(python_dir=py3_path, env_dict=smks_studio_env)
-
         config = self.config_choice.currentText()
         session_parameters = list(self.smks_configuration_from_preset(config, self._branch_choice.currentText()))
         session_parameters[-1] = self._debug_option.isChecked()
