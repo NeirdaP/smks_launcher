@@ -7,3 +7,4 @@
 .ssh_key
 .ssh_key.pub
 *.png~
+/branches.json
