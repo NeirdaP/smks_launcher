@@ -705,7 +705,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             BETA="./images/build.png"
         )
 
-        for choice in updates.get_branches().keys():
+        for choice in sorted(updates.get_branches().keys()):
             if self._branch_choice.findText(choice) >= 0:
                 continue
             if choice in icons:
