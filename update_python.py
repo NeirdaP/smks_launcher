@@ -66,7 +66,7 @@ def make_python_update_process(
 
     update_env = os.environ.copy()
     if not requirements:
-        requirements = "P:/DEV/dev/smks_studio/requirements.txt"
+        requirements = "R:/supamonks/production/homemade_softwares/smks_studio/requirements.txt"
     smks_studio_root = os.path.dirname(requirements)
     update_env["SMKS_STUDIO_ROOT"] = smks_studio_root
     update_env["PYTHONDIR"] = python_dir.replace('/', '\\')

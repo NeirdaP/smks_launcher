@@ -1,4 +1,4 @@
-if '%SMKS_STUDIO_ROOT%'=='' (set SMKS_STUDIO_ROOT=P:\DEV\dev\smks_studio)
+if '%SMKS_STUDIO_ROOT%'=='' (set SMKS_STUDIO_ROOT=R:\supamonks\production\homemade_softwares\smks_studio)
 
 cd /D %PYTHONDIR%
 

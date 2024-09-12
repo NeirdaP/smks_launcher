@@ -8,6 +8,7 @@ import time
 import file
 import updates
 import subprocess
+import getpass
 
 from process_utils import ProcessWatcher, Thread, ProcessAgent
 
@@ -22,7 +23,9 @@ from qtpy import QtWidgets, QtCore, QtGui
 from qt_utils import PathEditor
 from smks_news_feed import SmksNewsFeed
 
-INSTALL_DIR = r"C:\software"
+REPO_BASE_NAME = "smks_studio"
+INSTALL_DIR = r"C:\software\{}\{}".format(REPO_BASE_NAME, getpass.getuser())
+
 SUB_MODULES_ATTEMPTS = 0
 
 NO_QT_ENV = "maya_env"
@@ -439,10 +442,10 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return repo_path
         else:
             branch = self._branch_choice.currentText()
-            if branch == "OFFICIAL" or not branch:
-                return "C:/software/smks_studio"
+            if not branch:
+                return "{}/{}".format(INSTALL_DIR, REPO_BASE_NAME)
             else:
-                return "C:/software/smks_studio_%s" % branch.replace(' ', '_')
+                return "{}/{}_{}".format(INSTALL_DIR, REPO_BASE_NAME, branch.replace(' ', '_'))
 
     def exit(self):
         import time
@@ -494,7 +497,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._display_loading(self._python_install_button)
 
         for item in os.listdir(INSTALL_DIR):
-            if item.startswith("smks_studio"):
+            if item.startswith(REPO_BASE_NAME):
                 repo_path = os.path.join(INSTALL_DIR, item)
                 thread = threading.Thread(
                     target=lambda _path=repo_path:
@@ -528,7 +531,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
         self._hide_loading(self._python_update_button)
         self._handle_smks_update_end(return_code)
         if return_code == 1:
-            self._update_python(requirements_path=r"P:\DEV\dev\smks_studio\requirements.txt")
+            self._update_python(
+                requirements_path=r"R:\supamonks\production\homemade_softwares\smks_studio\requirements.txt"
+            )
         else:
             self._update_python()
 
@@ -614,7 +619,7 @@ class LauncherDialog(QtWidgets.QMainWindow):
             return self._requirements_path_edit.get_edited_value()
         if requirement_preset == "DEFAULT":
             return os.path.join(self.get_repo_path(), "requirements.txt")
-        return "P:/DEV/dev/smks_studio/requirements.txt"
+        return "R:/supamonks/production/homemade_softwares/smks_studio/requirements.txt"
 
     def _update_button_loading_icon(self):
         for button, icon, stylesheet in list(self._loading_buttons.values()):
