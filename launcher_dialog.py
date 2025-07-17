@@ -538,6 +538,9 @@ class LauncherDialog(QtWidgets.QMainWindow):
             self._update_python()
 
     def _update_python(self, end_callback=None, requirements_path=""):
+        print("Skipping python update, python folders are deployed by its for now")
+        return
+
         import functools
 
         if not self._python_update_button.isVisible():
